@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>__TITLE__</title>
+    <style>
+      * { margin: 0; box-sizing: border-box; }
+      /* Content-only guest: the shell provides chrome; keep the body transparent. */
+      html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+      #app { position: fixed; inset: 0; display: grid; place-items: center; color: #e8edf6;
+             font: 16px/1.4 ui-sans-serif, system-ui, sans-serif; text-align: center; }
+      .label { opacity: 0.6; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.8rem; }
+      .power { font-size: clamp(3rem, 16vw, 11rem); font-weight: 800; font-variant-numeric: tabular-nums; }
+      .power small { font-size: 0.3em; opacity: 0.6; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div>
+        <div class="label">Power</div>
+        <div class="power"><span id="power">0</span><small> W</small></div>
+        <div class="label">__TITLE__ — replace me with your game</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

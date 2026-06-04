@@ -1,0 +1,21 @@
+{
+  "name": "@rydr/game-__SLUG__",
+  "version": "0.0.0",
+  "description": "__TITLE__ — a RYDR platform game.",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n game,shell \"vite\" \"npx -y --package github:bdefrenne/rydr-platform rydr-dev-shell --slug __SLUG__ --title \\\"__TITLE__\\\" --game http://localhost:3400\"",
+    "dev:game": "vite",
+    "build": "tsc && vite build",
+    "typecheck": "tsc -p tsconfig.json",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@rydr/game-sdk": "github:bdefrenne/rydr-game-sdk#semver:^1.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}
