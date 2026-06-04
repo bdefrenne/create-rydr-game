@@ -21,9 +21,15 @@ Hard rules — keep to these:
 - **Only game-specific data** goes to a backend you stand up yourself; user/power/FIT/
   leaderboards are platform services.
 
-## Staying current
+## The SDK is your reference — read it from the package
 
-This skeleton mirrors the `@rydr/game-sdk` surface and the platform's guest contract. If
-something here looks out of date with the SDK (new capabilities, changed session methods,
-dev-shell invocation), trust the SDK and update accordingly — the platform + SDK repos are
-the source of truth.
+Don't learn the API from this file. The **`@rydr/game-sdk` package is the single source of
+truth** (it ships its own docs + types). After `npm install`, read:
+
+- **`node_modules/@rydr/game-sdk/dist/index.d.ts`** — the exact, current API: the full
+  `PlatformSession` (`hardware`, `identity`, `onButton`, `setChrome`/`setRoute`,
+  `startActivity`/`finishActivity`, trainer control, lifecycle), `HardwareSnapshot`,
+  `ScopedIdentity`, the `Capability` union, and `createDevHarness`.
+- **`node_modules/@rydr/game-sdk/README.md`** — usage + an API overview.
+
+If anything about the API is unclear, open those — never guess.
