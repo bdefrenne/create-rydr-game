@@ -10,10 +10,8 @@ async function boot(): Promise<void> {
   // The shell's bottom power slider (or a real trainer) drives power when embedded.
   if (window.parent === window) createDevHarness({ ui: false });
 
-  const session = await connectToPlatform({
-    gameId: "__SLUG__",
-    capabilities: ["power", "identity"], // add cadence/heartRate/speed/buttons as needed
-  });
+  // Games get FULL hardware access — there's nothing to choose. Just pass your gameId.
+  const session = await connectToPlatform({ gameId: "__SLUG__" });
   session.ready();
 
   // --- Demo: show the live power the shell bridges from the trainer/slider. ---
@@ -24,6 +22,7 @@ async function boot(): Promise<void> {
 
   // --- Lifecycle hooks you'll likely use (uncomment as needed) ---
   // session.identity.ftp / .weightKg / .displayName  → scoped, PII-free player data
+  //   (ftp is ALWAYS a usable number — the platform defaults it; no fallback needed)
   // session.setChrome(false)            → hide the shell navbar during immersive play
   // session.setChrome(true)             → show it again on menus
   // session.setRoute("play")            → project your internal route into the top URL

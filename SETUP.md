@@ -1,16 +1,21 @@
 # Setting up a new RYDR game — agent guide
 
-You are an AI agent. A teammate scaffolded this folder from `create-rydr-game`
-(`npx degit bdefrenne/create-rydr-game <name>`), so the files exist but there's **no git
-history and no `node_modules` yet**. Do every step below end-to-end; ask the user only for
-the game idea, a slug/title, and a free port if `3400` is taken. **Delete this file when done.**
+You are an AI agent creating a new RYDR game from this template. Do every step below
+end-to-end; ask the user only for the game idea, a slug/title, and a free port if `3400`
+is taken. **Delete this file from the new game when done.**
 
-## 1. Initialize the project
+## 1. Get into a fresh game folder
+
+This template is the **source — never build the game inside it.** Create a new **sibling
+folder** and work there:
 
 ```bash
-git init                 # degit strips history — start a fresh local repo
+npx degit bdefrenne/create-rydr-game ../rydr-<game>   # fresh copy, no git history
+cd ../rydr-<game>
+git init                 # start a fresh local repo
 npm install              # installs deps AND fetches @rydr/game-sdk so you can read it
 ```
+(If the user already ran `degit` and you're inside the new folder, just `git init && npm install`.)
 
 ## 2. Learn the SDK — by loading and reading the package
 
@@ -35,25 +40,24 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
 - Port defaults to `3400` (in `vite.config.ts` **and** the `dev` script's
   `--game http://localhost:<port>`); change both only if it clashes with something running.
 
-## 4. Choose capabilities
+## 4. Build the game
 
-In `src/main.ts`, set `capabilities` to a subset of
-`power | cadence | heartRate | speed | buttons | identity` (minimum: `power`, `identity`).
-
-## 5. Build the game
+The game gets **full hardware access — there are no capabilities to choose** (don't pass a
+`capabilities` list; `connectToPlatform({ gameId })` grants everything).
 
 Implement it in `src/`: read live values from `session.hardware` (power/cadence/HR/speed)
-and `session.identity`; drive resistance with `setSimulation`/`setTargetPower` if relevant;
-`setChrome(false)` for immersive play; `setRoute(path)` for shareable URLs; and bracket the
-ride with `startActivity`/`finishActivity` so the **shell** records the FIT.
+and `session.identity` (`ftp` is always a usable number — no fallback); drive resistance
+with `setSimulation`/`setTargetPower` if relevant; `setChrome(false)` for immersive play;
+`setRoute(path)` for shareable URLs; and bracket the ride with
+`startActivity`/`finishActivity` so the **shell** records the FIT.
 
-## 6. Run it locally
+## 5. Run it locally
 
 ```bash
 npm run dev   # your game + the RYDR shell at http://localhost:3100 (power slider / trainer)
 ```
 
-## 7. Create the GitHub repo + push
+## 6. Create the GitHub repo + push
 
 ```bash
 git add -A && git commit -m "Initial RYDR game: <slug>"
@@ -63,7 +67,7 @@ git remote add origin https://github.com/<owner>/<repo>.git
 git push -u origin main
 ```
 
-## 8. Deploy + register in the library
+## 7. Deploy + register in the library
 
 - Connect the repo to **Vercel** → it deploys on every push to `main` (the build clones only
   the **public** `@rydr/game-sdk`, so no tokens/secrets are needed). Note the production URL.

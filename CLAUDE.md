@@ -1,5 +1,10 @@
 # RYDR game conventions (content-only guest)
 
+> **⚠️ This is the TEMPLATE, not a game.** To create a game, scaffold a **new sibling
+> folder** and work *there* — never modify this template in place:
+> `npx degit bdefrenne/create-rydr-game ../rydr-<game> && cd ../rydr-<game>`
+> then follow `SETUP.md`. (If you're reading this inside `create-rydr-game`, do that first.)
+
 This project runs **inside the RYDR platform shell** as a content-only iframe guest.
 Hard rules — keep to these:
 
@@ -9,8 +14,11 @@ Hard rules — keep to these:
   stay token-free.
 - **No chrome.** The shell owns the navbar, background, hardware UI, and profile. Your
   `index.html` body stays transparent; you render only game content.
+- **Full access — no capabilities to choose.** `connectToPlatform({ gameId })` grants the
+  game **everything**; never pass a `capabilities` list.
 - **Hardware + identity come from the shell**, via `session.hardware` and `session.identity`.
-  Never connect to BLE/Bluetooth or read a profile yourself.
+  Never connect to BLE/Bluetooth or read a profile yourself. `session.identity.ftp` is
+  **always** a usable number (the platform defaults it) — no fallback needed.
 - **The shell records the activity + FIT.** Bracket a session with
   `session.startActivity(...)` / `session.finishActivity(...)`; do not build your own FIT
   encoder or write activities to a backend.
