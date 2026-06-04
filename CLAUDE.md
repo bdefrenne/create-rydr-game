@@ -19,9 +19,9 @@ Hard rules — keep to these:
 - **Hardware + identity come from the shell**, via `session.hardware` and `session.identity`.
   Never connect to BLE/Bluetooth or read a profile yourself. `session.identity.ftp` is
   **always** a usable number (the platform defaults it) — no fallback needed.
-- **The shell records the activity + FIT.** Bracket a session with
-  `session.startActivity(...)` / `session.finishActivity(...)`; do not build your own FIT
-  encoder or write activities to a backend.
+- **The platform records the activity + FIT automatically — you do nothing.** Every
+  session is recorded by the shell from its own hardware stream. There is **no** activity
+  API on the SDK; never build your own FIT encoder or write activities to a backend.
 - **Immersive play:** `session.setChrome(false)` hides the navbar during play,
   `setChrome(true)` restores it on menus. Project internal routes with
   `session.setRoute(path)` so the top URL is shareable/deep-linkable (honor
@@ -36,8 +36,8 @@ truth** (it ships its own docs + types). After `npm install`, read:
 
 - **`node_modules/@rydr/game-sdk/dist/index.d.ts`** — the exact, current API: the full
   `PlatformSession` (`hardware`, `identity`, `onButton`, `setChrome`/`setRoute`,
-  `startActivity`/`finishActivity`, trainer control, lifecycle), `HardwareSnapshot`,
-  `ScopedIdentity`, the `Capability` union, and `createDevHarness`.
+  trainer control, lifecycle), `HardwareSnapshot`, `ScopedIdentity`, the `Capability`
+  union, and `createDevHarness`.
 - **`node_modules/@rydr/game-sdk/README.md`** — usage + an API overview.
 
 If anything about the API is unclear, open those — never guess.

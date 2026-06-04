@@ -26,9 +26,10 @@ async function boot(): Promise<void> {
   // session.setChrome(false)            → hide the shell navbar during immersive play
   // session.setChrome(true)             → show it again on menus
   // session.setRoute("play")            → project your internal route into the top URL
-  // session.startActivity("cycling")    → the SHELL records the activity + FIT
-  // session.finishActivity({ sport: "cycling", durationMs })
   // session.submitScore(boardId, value) → leaderboards (when the data services land)
+  //
+  // There is NO activity/FIT API. The platform records every session automatically
+  // from its own hardware stream — your game does nothing for recording.
 }
 
 void boot();
