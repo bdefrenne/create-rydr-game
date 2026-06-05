@@ -9,7 +9,7 @@
  *
  * Usage:
  *   # Put `ADMIN_SECRET=…` in .env.local (gitignored), then:
- *   npm run register -- --url https://<your-game>.vercel.app [--live]
+ *   npm run register -- --url https://<your-game>.vercel.app [--draft]
  *   # or pass it inline / paste it when prompted:
  *   ADMIN_SECRET=… npm run register -- --url https://<your-game>.vercel.app
  */
@@ -72,7 +72,7 @@ const manifest = {
   // Declarative leaderboard boards (from `rydr.boards`); the shell hands them to the game as
   // `session.boards` and renders the /leaderboards hub. Omit the field if you have none.
   boards: Array.isArray(rydr.boards) ? rydr.boards : undefined,
-  isLive: hasFlag("live"), // draft by default; pass --live to publish
+  isLive: !hasFlag("draft"), // LIVE by default; pass --draft to register as a hidden draft
 };
 
 const secret = await getSecret();

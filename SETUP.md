@@ -2,7 +2,7 @@
 
 You are an AI agent creating a new RYDR game from this template. **All 8 steps are mandatory —
 "creating a game" includes shipping it.** The job is not done until the game is deployed to Vercel
-and registered on the platform as a **draft** (steps 6–8); do not stop at local dev or treat
+and registered on the platform (steps 6–8, **Live** by default); do not stop at local dev or treat
 shipping as optional. Steps 6–8 need a few inputs from the user — **ask for them up front and
 proceed**, don't use them as a reason to skip: the game idea, a slug/title, a free port if `3400`
 is taken, the GitHub `<owner>` for the repo (step 6), and the user's private `.env.local` (holding
@@ -130,7 +130,7 @@ npm run deploy         # `vercel --prod` → first production deploy; prints the
 Note the printed **production URL** for the next step. After this, ordinary `git push` to `main`
 redeploys automatically — you only re-run `npm run deploy` for an out-of-band manual deploy.
 
-## 8. Register in the library (as a draft, so anyone can test)
+## 8. Register in the library (LIVE by default)
 
 Register reads slug/title/icon/accent **and `boards`** from `package.json`'s `rydr` block and POSTs
 to the platform registry. The **admin secret never enters the AI's view**: it lives in a gitignored
@@ -139,15 +139,15 @@ to the platform registry. The **admin secret never enters the AI's view**: it li
 ```bash
 # One-time per repo: paste your private .env.local (containing ADMIN_SECRET=…) into the repo root.
 #   ⚠️ Never commit it, and never add it to the public create-rydr-game template.
-npm run register -- --url https://<your-game>.vercel.app   # draft (isLive:false) by default
-#                                                            add --live to publish
+npm run register -- --url https://<your-game>.vercel.app   # LIVE (isLive:true) by default
+#                                                            add --draft to register as a hidden draft
 ```
 
 `register` auto-loads `.env.local`, so no secret is typed inline. **Ask the user to paste their
 `.env.local` into the new repo** before running it (or to paste the secret at the interactive
-prompt). A **draft** is exactly the "anyone can test it" state — it doesn't appear in the public
-library, but is previewable on the shell via `?admin`. Re-run with `--live` (or flip **Live** in
-`?admin`) to publish.
+prompt). By default the game registers **Live** — it appears in the public library immediately. Pass
+`--draft` (or flip **Live** off in `?admin`) for the "anyone can test it, not yet public" state: a
+draft doesn't show in the public library but is previewable on the shell via `?admin`.
 
 - **Registering is a separate step from deploying.** A Vercel deploy ships your *code*; it does
   **not** touch the registry. Changing `rydr.boards` (or title/icon) only reaches the platform
