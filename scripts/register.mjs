@@ -3,15 +3,40 @@
  * Register (or update) this game in the RYDR platform library — no /admin.html needed.
  *
  * Reads the game's manifest from package.json's `rydr` block, the deployed URL from
- * `--url` (or $RYDR_GAME_URL), and the **admin secret from your environment** ($RYDR_ADMIN_SECRET)
- * or an interactive prompt — so the secret never has to be typed where an AI can see it.
+ * `--url` (or $RYDR_GAME_URL), and the **admin secret from your environment** ($ADMIN_SECRET) —
+ * auto-loaded from a gitignored `.env.local` in the repo root if present — or an interactive
+ * prompt, so the secret never has to be typed where an AI can see it.
  *
  * Usage:
- *   RYDR_ADMIN_SECRET=… npm run register -- --url https://<your-game>.vercel.app [--live]
- *   # or omit the env var and paste the secret when prompted.
+ *   # Put `ADMIN_SECRET=…` in .env.local (gitignored), then:
+ *   npm run register -- --url https://<your-game>.vercel.app [--live]
+ *   # or pass it inline / paste it when prompted:
+ *   ADMIN_SECRET=… npm run register -- --url https://<your-game>.vercel.app
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { createInterface } from "node:readline";
+
+/** Best-effort load of `.env.local` (KEY=VALUE lines) into process.env without overwriting. */
+function loadEnvLocal() {
+  const path = new URL("../.env.local", import.meta.url);
+  if (!existsSync(path)) return;
+  for (const raw of readFileSync(path, "utf8").split("\n")) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq === -1) continue;
+    const key = line.slice(0, eq).trim();
+    let val = line.slice(eq + 1).trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    if (key && process.env[key] === undefined) process.env[key] = val;
+  }
+}
+loadEnvLocal();
 
 function arg(name) {
   const i = process.argv.indexOf(`--${name}`);
@@ -31,7 +56,7 @@ if (!slug || !rydr.title || !url) {
 }
 
 async function getSecret() {
-  if (process.env.RYDR_ADMIN_SECRET) return process.env.RYDR_ADMIN_SECRET.trim();
+  if (process.env.ADMIN_SECRET) return process.env.ADMIN_SECRET.trim();
   const rl = createInterface({ input: process.stdin, output: process.stderr });
   const secret = await new Promise((res) => rl.question("Admin secret: ", res));
   rl.close();

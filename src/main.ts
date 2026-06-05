@@ -1,4 +1,4 @@
-import { connectToPlatform, createDevHarness } from "@rydr/game-sdk";
+import { connectToPlatform } from "@rydr/game-sdk";
 
 /**
  * Minimal RYDR guest: connect to the platform, then render live power.
@@ -6,10 +6,6 @@ import { connectToPlatform, createDevHarness } from "@rydr/game-sdk";
  * `session.identity`, and use the lifecycle hooks below. See CLAUDE.md for the conventions.
  */
 async function boot(): Promise<void> {
-  // Standalone dev (not embedded in the shell) → a mock platform for the handshake.
-  // The shell's bottom power slider (or a real trainer) drives power when embedded.
-  if (window.parent === window) createDevHarness({ ui: false });
-
   // Games get FULL hardware access — there's nothing to choose. Just pass your gameId.
   const session = await connectToPlatform({ gameId: "__SLUG__" });
   session.ready();

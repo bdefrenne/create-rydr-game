@@ -39,6 +39,10 @@ Hard rules — keep to these:
   owns — declare them in `package.json`'s `rydr.boards`, then `npm run register` pushes them to
   the platform so `submitScore(boardId, …)` works (an unknown `boardId` is rejected). The repo
   is the source of truth. See `SETUP.md`.
+- **Shipping is part of the flow.** The standard new-game lifecycle ends by **deploying to a
+  per-game Vercel project** (`npm run deploy:link` + `npm run deploy`, GitHub-connected) and
+  **registering as a draft** (`npm run register`, secret from a gitignored `.env.local`) so anyone
+  can test it via the shell's `?admin`. See `SETUP.md` (steps 6–8) for the commands.
 
 ## The SDK is your reference — read it from the package
 
@@ -50,7 +54,7 @@ truth** (it ships its own docs + types). After `npm install`, read:
   trainer control, lifecycle, **backend services** — `submitScore`/`getLeaderboard`,
   `saveRun`, the `get`/`save`/`list` data methods, `getUploadUrl`, `joinRoom`),
   `HardwareSnapshot`, `ScopedIdentity`, the backend types (`BoardDefinition`, `GameDoc`,
-  `RoomHandle`), the `Capability` union, and `createDevHarness`.
+  `RoomHandle`), and the `Capability` union.
 - **`node_modules/@rydr/game-sdk/README.md`** — usage + an API overview.
 
 If anything about the API is unclear, open those — never guess.

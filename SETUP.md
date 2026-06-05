@@ -1,8 +1,10 @@
 # Setting up a new RYDR game — agent guide
 
 You are an AI agent creating a new RYDR game from this template. Do every step below
-end-to-end; ask the user only for the game idea, a slug/title, and a free port if `3400`
-is taken. **Delete this file from the new game when done.**
+end-to-end; ask the user for the game idea, a slug/title, a free port if `3400` is taken,
+the GitHub `<owner>` for the repo (step 6), and to paste their private `.env.local`
+(holding `ADMIN_SECRET`) into the new repo before registering (step 8).
+**Delete this file from the new game when done.**
 
 ## 1. Get into a fresh game folder
 
@@ -25,7 +27,7 @@ After `npm install` (step 1) the package is on disk; read it instead of guessing
   `connectToPlatform`, `PlatformSession` (`hardware`, `identity`, `onButton`,
   `setChrome`/`setRoute`, trainer control, lifecycle, and the **backend services** —
   `submitScore`/`getLeaderboard`, `saveRun`/`getRun`, `saveReplay`/`getReplays`, the data-store
-  methods, `getUploadUrl`, `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, `Capability`, `createDevHarness`.
+  methods, `getUploadUrl`, `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, `Capability`.
 - `node_modules/@rydr/game-sdk/README.md` — usage + an API overview, incl. *Backend services*.
 
 Then read this repo's `CLAUDE.md` for the guest **rules** (content-only, SDK-only, etc.).
@@ -35,7 +37,8 @@ The package is the source of truth — never invent SDK methods.
 
 Pick a kebab-case **slug** and a human **title** (ask the user). Replace every occurrence:
 - `__SLUG__` → slug (e.g. `flappy-bike`) — `package.json` (`name` → `@rydr/game-<slug>`,
-  the `rydr.slug` block, and the `dev` script) and `src/main.ts` (`gameId`).
+  the `rydr.slug` block, the `dev` script, **and the `deploy:link` script**) and `src/main.ts`
+  (`gameId`).
 - `__TITLE__` → title (e.g. `RYDR Flappy Bike`) — `index.html` `<title>` (+ the demo text)
   and `package.json` (`description`, `rydr.title`, and the `dev` script).
 - Optionally set `rydr.icon` / `rydr.accent` in `package.json` (used by the library tile);
@@ -49,7 +52,7 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
   ```jsonc
   "boards": [{ "id": "score", "label": "High Scores", "valueType": "score", "sort": "desc", "aggregate": "best" }]
   ```
-  The board only reaches the platform when you **register** (step 7) — submitting to an id that
+  The board only reaches the platform when you **register** (step 8) — submitting to an id that
   isn't declared+registered is rejected.
 - Port defaults to `3400` (in `vite.config.ts` **and** the `dev` script's
   `--game http://localhost:<port>`); change both only if it clashes with something running.
@@ -82,30 +85,56 @@ npm run dev   # your game + the RYDR shell at http://localhost:3100 (power slide
 
 ## 6. Create the GitHub repo + push
 
+The deploy below is **GitHub-connected** (Vercel auto-deploys on every push to `main`), so the repo
+comes first. Detect whether the `gh` CLI is available and branch:
+
 ```bash
 git add -A && git commit -m "Initial RYDR game: <slug>"
-# Create the remote first — `gh repo create <owner>/<repo> --private --source=. --push`,
-# or ask the user to create github.com/<owner>/<repo> and then:
-git remote add origin https://github.com/<owner>/<repo>.git
+
+# If `gh` is installed (check: command -v gh):
+gh repo create <owner>/rydr-<slug> --private --source=. --push
+
+# Otherwise — ask the user to create github.com/<owner>/rydr-<slug> (empty, no README), then:
+git remote add origin https://github.com/<owner>/rydr-<slug>.git
 git push -u origin main
 ```
 
-## 7. Deploy + register in the library
+(Repo name convention: `rydr-<slug>`, matching the game folder.)
 
-- Connect the repo to **Vercel** → it deploys on every push to `main` (the build clones only
-  the **public** `@rydr/game-sdk`, so no tokens/secrets are needed). Note the production URL.
-- Register the game from the terminal — it reads slug/title/icon/accent **and `boards`** from
-  `package.json`'s `rydr` block and POSTs to the platform registry. **The admin secret stays
-  out of your (the AI's) view** — ask the user to run it with the secret in their env, or to
-  paste it at the prompt:
+## 7. Deploy to a per-game Vercel project (GitHub-connected)
 
-  ```bash
-  RYDR_ADMIN_SECRET=… npm run register -- --url https://<your-game>.vercel.app   # draft
-  #                                                                       add --live to publish
-  ```
+Uses the **Vercel CLI** — install it once and `vercel login` (the project adopts your logged-in
+scope/team; nothing is hardcoded). The build clones only the **public** `@rydr/game-sdk`, so no
+tokens/secrets are needed. Project name convention: **`rydr-game-<slug>`** (already encoded in the
+`deploy:link` script).
 
-  Drafts don't appear in the public library; preview on the shell via `?admin`, then re-run
-  with `--live` (or flip **Live** in `?admin`) to publish.
+```bash
+npm run deploy:link    # `vercel link` → creates/links project rydr-game-<slug> (writes .vercel/, gitignored)
+vercel git connect     # wire the pushed GitHub repo → auto-deploy on every push to main
+npm run deploy         # `vercel --prod` → first production deploy; prints the production URL
+```
+
+Note the printed **production URL** for the next step. After this, ordinary `git push` to `main`
+redeploys automatically — you only re-run `npm run deploy` for an out-of-band manual deploy.
+
+## 8. Register in the library (as a draft, so anyone can test)
+
+Register reads slug/title/icon/accent **and `boards`** from `package.json`'s `rydr` block and POSTs
+to the platform registry. The **admin secret never enters the AI's view**: it lives in a gitignored
+**`.env.local`** (the template's `*.local` rule keeps it out of git) as `ADMIN_SECRET=…`.
+
+```bash
+# One-time per repo: paste your private .env.local (containing ADMIN_SECRET=…) into the repo root.
+#   ⚠️ Never commit it, and never add it to the public create-rydr-game template.
+npm run register -- --url https://<your-game>.vercel.app   # draft (isLive:false) by default
+#                                                            add --live to publish
+```
+
+`register` auto-loads `.env.local`, so no secret is typed inline. **Ask the user to paste their
+`.env.local` into the new repo** before running it (or to paste the secret at the interactive
+prompt). A **draft** is exactly the "anyone can test it" state — it doesn't appear in the public
+library, but is previewable on the shell via `?admin`. Re-run with `--live` (or flip **Live** in
+`?admin`) to publish.
 
 - **Registering is a separate step from deploying.** A Vercel deploy ships your *code*; it does
   **not** touch the registry. Changing `rydr.boards` (or title/icon) only reaches the platform
