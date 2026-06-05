@@ -3,8 +3,8 @@
 Template for a new game on the **RYDR platform**. Scaffold it:
 
 ```bash
-npx degit bdefrenne/create-rydr-game my-game
-cd my-game
+npx degit bdefrenne/create-rydr-game rydr-game-<slug>   # e.g. rydr-game-pong
+cd rydr-game-<slug>
 ```
 
 Then open the folder in your AI agent and say:

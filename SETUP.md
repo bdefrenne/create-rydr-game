@@ -16,8 +16,8 @@ This template is the **source — never build the game inside it.** Create a new
 folder** and work there:
 
 ```bash
-npx degit bdefrenne/create-rydr-game ../rydr-<game>   # fresh copy, no git history
-cd ../rydr-<game>
+npx degit bdefrenne/create-rydr-game ../rydr-game-<slug>   # fresh copy, no git history
+cd ../rydr-game-<slug>
 git init                 # start a fresh local repo
 npm install              # installs deps AND fetches @rydr/game-sdk so you can read it
 ```
@@ -96,14 +96,15 @@ comes first. Detect whether the `gh` CLI is available and branch:
 git add -A && git commit -m "Initial RYDR game: <slug>"
 
 # If `gh` is installed (check: command -v gh):
-gh repo create <owner>/rydr-<slug> --private --source=. --push
+gh repo create <owner>/rydr-game-<slug> --private --source=. --push
 
-# Otherwise — ask the user to create github.com/<owner>/rydr-<slug> (empty, no README), then:
-git remote add origin https://github.com/<owner>/rydr-<slug>.git
+# Otherwise — ask the user to create github.com/<owner>/rydr-game-<slug> (empty, no README), then:
+git remote add origin https://github.com/<owner>/rydr-game-<slug>.git
 git push -u origin main
 ```
 
-(Repo name convention: `rydr-<slug>`, matching the game folder.)
+(Naming convention — all the same `rydr-game-<slug>`: the folder, the GitHub repo, and the Vercel
+project, matching the `@rydr/game-<slug>` package name.)
 
 ## 7. Deploy to a per-game Vercel project (GitHub-connected)
 

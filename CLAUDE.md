@@ -2,7 +2,7 @@
 
 > **⚠️ This is the TEMPLATE, not a game.** To create a game, scaffold a **new sibling
 > folder** and work *there* — never modify this template in place:
-> `npx degit bdefrenne/create-rydr-game ../rydr-<game> && cd ../rydr-<game>`
+> `npx degit bdefrenne/create-rydr-game ../rydr-game-<slug> && cd ../rydr-game-<slug>`
 > then follow `SETUP.md`. (If you're reading this inside `create-rydr-game`, do that first.)
 
 This project runs **inside the RYDR platform shell** as a content-only iframe guest.
