@@ -5,6 +5,28 @@
 > `npx degit bdefrenne/create-rydr-game ../rydr-game-<slug> && cd ../rydr-game-<slug>`
 > then follow `SETUP.md`. (If you're reading this inside `create-rydr-game`, do that first.)
 
+## The one rule: power is the controller
+
+A RYDR game is played by **pedaling**. The rider's **power output (watts) is the primary
+controller** — like the mouse in an FPS. Not cadence, not heart rate: **power**. Read it from
+`session.hardware` (`hw.power`) and map it to your core action (the ship's position, the car's
+speed, the turret's fire rate…). **If your game's main mechanic isn't driven by watts, it's wrong.**
+
+- **FTP-relative, never raw watts.** Scale by `power / session.identity.ftp` so a 150 W rider and a
+  350 W rider get the same challenge. Hardcoding "above 200 W" anywhere is a bug. (`ftp` is always
+  a usable number — no fallback needed.)
+- **The game creates demand; the rider responds.** No prescriptive targets — no "hold 250 W for
+  4 min", no ERG, no zone bar to sit inside. Instead the *game* makes the rider want to push: a
+  surge of enemies → push harder; a hill → dig in; lulls → recover. The pacing of those events
+  *is* the workout.
+- **The loop: SEE → REACT → PUSH → SEE.** The player sees a threat, pushes, and immediately sees
+  the result. Keep current effort visible as *feedback* (a power bar, position, fire rate) —
+  feedback is fine; *instructions* are not.
+- **Effort is the fun.** Build situations where pushing harder is rewarded and easing off has a
+  cost, so the workout emerges from play, not from a timer.
+
+(Cadence/HR from `session.hardware` are fair *secondary* inputs, but never the primary controller.)
+
 This project runs **inside the RYDR platform shell** as a content-only iframe guest.
 Hard rules — keep to these:
 

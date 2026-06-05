@@ -6,8 +6,10 @@ and registered on the platform as a **draft** (steps 6–8); do not stop at loca
 shipping as optional. Steps 6–8 need a few inputs from the user — **ask for them up front and
 proceed**, don't use them as a reason to skip: the game idea, a slug/title, a free port if `3400`
 is taken, the GitHub `<owner>` for the repo (step 6), and the user's private `.env.local` (holding
-`ADMIN_SECRET`) pasted into the new repo before registering (step 8). The only legitimate reason to
-stop before step 8 is the user **explicitly** saying they don't want to ship yet.
+`ADMIN_SECRET`) pasted into the new repo before registering (step 8). Step 6 uses the **`gh` CLI** —
+if it's not installed, have the user install + `gh auth login` up front (don't hand-create the repo).
+The only legitimate reason to stop before step 8 is the user **explicitly** saying they don't want
+to ship yet.
 **Delete this file from the new game when done.**
 
 ## 1. Get into a fresh game folder
@@ -63,6 +65,12 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
 
 ## 4. Build the game
 
+**Before you design the mechanic, read `CLAUDE.md`'s "The one rule: power is the controller".**
+The rider's **watts** must drive the core action (FTP-relative — scale by `power / identity.ftp`),
+and the game must *create reasons to modulate effort* (SEE → REACT → PUSH → SEE). Not cadence, not
+heart rate. **A game where power isn't the primary control is wrong** — that's the single most
+common mistake.
+
 The game gets **full hardware access — there are no capabilities to choose** (don't pass a
 `capabilities` list; `connectToPlatform({ gameId })` grants everything).
 
@@ -90,18 +98,18 @@ npm run dev   # your game + the RYDR shell at http://localhost:3100 (power slide
 ## 6. Create the GitHub repo + push
 
 The deploy below is **GitHub-connected** (Vercel auto-deploys on every push to `main`), so the repo
-comes first. Detect whether the `gh` CLI is available and branch:
+comes first. **Use the `gh` CLI** — check `command -v gh`; if it's missing, **stop and ask the user
+to install + authenticate it** (`brew install gh` on macOS, or https://cli.github.com, then
+`gh auth login`). Don't fall back to creating the repo by hand — `gh` is much faster for every later
+push/PR, so it's worth installing once.
 
 ```bash
 git add -A && git commit -m "Initial RYDR game: <slug>"
-
-# If `gh` is installed (check: command -v gh):
 gh repo create <owner>/rydr-game-<slug> --private --source=. --push
-
-# Otherwise — ask the user to create github.com/<owner>/rydr-game-<slug> (empty, no README), then:
-git remote add origin https://github.com/<owner>/rydr-game-<slug>.git
-git push -u origin main
 ```
+
+(Last resort only if the user genuinely can't install `gh`: have them create
+`github.com/<owner>/rydr-game-<slug>` empty, then `git remote add origin … && git push -u origin main`.)
 
 (Naming convention — all the same `rydr-game-<slug>`: the folder, the GitHub repo, and the Vercel
 project, matching the `@rydr/game-<slug>` package name.)
