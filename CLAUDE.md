@@ -39,10 +39,11 @@ Hard rules — keep to these:
   owns — declare them in `package.json`'s `rydr.boards`, then `npm run register` pushes them to
   the platform so `submitScore(boardId, …)` works (an unknown `boardId` is rejected). The repo
   is the source of truth. See `SETUP.md`.
-- **Shipping is part of the flow.** The standard new-game lifecycle ends by **deploying to a
+- **Shipping is mandatory, not optional.** Creating a game isn't done until it's **deployed to a
   per-game Vercel project** (`npm run deploy:link` + `npm run deploy`, GitHub-connected) and
-  **registering as a draft** (`npm run register`, secret from a gitignored `.env.local`) so anyone
-  can test it via the shell's `?admin`. See `SETUP.md` (steps 6–8) for the commands.
+  **registered as a draft** (`npm run register`, secret from a gitignored `.env.local`) so anyone
+  can test it via the shell's `?admin`. Don't stop at local dev. See `SETUP.md` (steps 6–8) — the
+  only reason to skip is the user explicitly saying they don't want to ship yet.
 
 ## The SDK is your reference — read it from the package
 

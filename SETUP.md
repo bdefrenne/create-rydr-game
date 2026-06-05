@@ -1,9 +1,13 @@
 # Setting up a new RYDR game — agent guide
 
-You are an AI agent creating a new RYDR game from this template. Do every step below
-end-to-end; ask the user for the game idea, a slug/title, a free port if `3400` is taken,
-the GitHub `<owner>` for the repo (step 6), and to paste their private `.env.local`
-(holding `ADMIN_SECRET`) into the new repo before registering (step 8).
+You are an AI agent creating a new RYDR game from this template. **All 8 steps are mandatory —
+"creating a game" includes shipping it.** The job is not done until the game is deployed to Vercel
+and registered on the platform as a **draft** (steps 6–8); do not stop at local dev or treat
+shipping as optional. Steps 6–8 need a few inputs from the user — **ask for them up front and
+proceed**, don't use them as a reason to skip: the game idea, a slug/title, a free port if `3400`
+is taken, the GitHub `<owner>` for the repo (step 6), and the user's private `.env.local` (holding
+`ADMIN_SECRET`) pasted into the new repo before registering (step 8). The only legitimate reason to
+stop before step 8 is the user **explicitly** saying they don't want to ship yet.
 **Delete this file from the new game when done.**
 
 ## 1. Get into a fresh game folder
