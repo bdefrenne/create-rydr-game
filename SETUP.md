@@ -24,8 +24,8 @@ After `npm install` (step 1) the package is on disk; read it instead of guessing
 - `node_modules/@rydr/game-sdk/dist/index.d.ts` — the exact, authoritative API:
   `connectToPlatform`, `PlatformSession` (`hardware`, `identity`, `onButton`,
   `setChrome`/`setRoute`, trainer control, lifecycle, and the **backend services** —
-  `submitScore`/`getLeaderboard`, `saveRun`, the data-store methods, `getUploadUrl`,
-  `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, `Capability`, `createDevHarness`.
+  `submitScore`/`getLeaderboard`, `saveRun`/`getRun`, `saveReplay`/`getReplays`, the data-store
+  methods, `getUploadUrl`, `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, `Capability`, `createDevHarness`.
 - `node_modules/@rydr/game-sdk/README.md` — usage + an API overview, incl. *Backend services*.
 
 Then read this repo's `CLAUDE.md` for the guest **rules** (content-only, SDK-only, etc.).
@@ -69,9 +69,10 @@ recording API to call.
 **Backend — don't reach for it too soon.** A session-only game (read hardware, play, let the
 platform record the activity) is complete and needs no backend. If/when you *do* need more, the
 shell backs it on the SDK session — never stand up your own: **leaderboards** (`submitScore`/
-`getLeaderboard`), **run records** (`saveRun`), a shared **game-data store** (`player` saves,
-`public` UGC, `shared` content), **asset hosting** (`getUploadUrl`), and **realtime rooms**
-(`joinRoom`). See `@rydr/game-sdk`'s README (*Backend services*) for each API.
+`getLeaderboard`), **run records** (`saveRun`/`getRun`), **replays/ghosts** (`saveReplay`/
+`getReplays`), a shared **game-data store** (`player` saves, `public` UGC, `shared` content),
+**asset hosting** (`getUploadUrl`), and **realtime rooms** (`joinRoom`). See `@rydr/game-sdk`'s
+README (*Backend services*) for each API.
 
 ## 5. Run it locally
 

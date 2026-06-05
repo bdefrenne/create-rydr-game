@@ -27,8 +27,8 @@ async function boot(): Promise<void> {
   // session.setChrome(true)             → show it again on menus
   // session.setRoute("play")            → project your internal route into the top URL
   //
-  // Backend services are live (leaderboards, saveRun, game-data store, asset upload, realtime
-  // rooms) — see the SDK README's "Backend services" section. Leaderboard boards are declared
+  // Backend services are live (leaderboards, saveRun/getRun, replays/ghosts, game-data store,
+  // asset upload, realtime rooms) — see the SDK README's "Backend services" section. Leaderboard boards are declared
   // in package.json's `rydr.boards` (see SETUP.md), then submitScore("<id>", value) works.
   //
   // There is NO activity/FIT API. The platform records every session automatically

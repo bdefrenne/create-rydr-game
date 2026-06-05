@@ -30,8 +30,9 @@ Hard rules — keep to these:
   (read hardware, play, let the platform record the activity) needs no backend at all; don't
   reach for it too soon. When you *do*, the shell backs it **through the SDK session** — there
   is nothing to add or host: **leaderboards** (`submitScore`/`getLeaderboard`), **run records**
-  (`saveRun`), a generic gameId-namespaced **game-data store** (`shared` content, `player`
-  saves, `public` UGC), **asset hosting** (`getUploadUrl`), and **realtime rooms** (`joinRoom`).
+  (`saveRun`/`getRun`), **replays/ghosts** (`saveReplay`/`getReplays`), a generic gameId-namespaced
+  **game-data store** (`shared` content, `player` saves, `public` UGC), **asset hosting**
+  (`getUploadUrl`), and **realtime rooms** (`joinRoom`).
   See `@rydr/game-sdk`'s README (*Backend services*) for how each works; don't learn the API
   from this file.
 - **Leaderboard boards are declared in *this repo*.** Boards are declarative config the game
