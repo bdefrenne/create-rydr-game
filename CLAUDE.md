@@ -26,8 +26,18 @@ Hard rules — keep to these:
   `setChrome(true)` restores it on menus. Project internal routes with
   `session.setRoute(path)` so the top URL is shareable/deep-linkable (honor
   `session.initialPath` on load).
-- **Only game-specific data** goes to a backend you stand up yourself; user/power/FIT/
-  leaderboards are platform services.
+- **The backend is a platform service — you never stand up your own.** A session-only game
+  (read hardware, play, let the platform record the activity) needs no backend at all; don't
+  reach for it too soon. When you *do*, the shell backs it **through the SDK session** — there
+  is nothing to add or host: **leaderboards** (`submitScore`/`getLeaderboard`), **run records**
+  (`saveRun`), a generic gameId-namespaced **game-data store** (`shared` content, `player`
+  saves, `public` UGC), **asset hosting** (`getUploadUrl`), and **realtime rooms** (`joinRoom`).
+  See `@rydr/game-sdk`'s README (*Backend services*) for how each works; don't learn the API
+  from this file.
+- **Leaderboard boards are declared in *this repo*.** Boards are declarative config the game
+  owns — declare them in `package.json`'s `rydr.boards`, then `npm run register` pushes them to
+  the platform so `submitScore(boardId, …)` works (an unknown `boardId` is rejected). The repo
+  is the source of truth. See `SETUP.md`.
 
 ## The SDK is your reference — read it from the package
 
@@ -36,8 +46,10 @@ truth** (it ships its own docs + types). After `npm install`, read:
 
 - **`node_modules/@rydr/game-sdk/dist/index.d.ts`** — the exact, current API: the full
   `PlatformSession` (`hardware`, `identity`, `onButton`, `setChrome`/`setRoute`,
-  trainer control, lifecycle), `HardwareSnapshot`, `ScopedIdentity`, the `Capability`
-  union, and `createDevHarness`.
+  trainer control, lifecycle, **backend services** — `submitScore`/`getLeaderboard`,
+  `saveRun`, the `get`/`save`/`list` data methods, `getUploadUrl`, `joinRoom`),
+  `HardwareSnapshot`, `ScopedIdentity`, the backend types (`BoardDefinition`, `GameDoc`,
+  `RoomHandle`), the `Capability` union, and `createDevHarness`.
 - **`node_modules/@rydr/game-sdk/README.md`** — usage + an API overview.
 
 If anything about the API is unclear, open those — never guess.

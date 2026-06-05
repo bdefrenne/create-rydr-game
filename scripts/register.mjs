@@ -44,6 +44,9 @@ const manifest = {
   icon: rydr.icon || "gamepad",
   accent: rydr.accent || "#4a73c0",
   url: url.replace(/\/$/, ""),
+  // Declarative leaderboard boards (from `rydr.boards`); the shell hands them to the game as
+  // `session.boards` and renders the /leaderboards hub. Omit the field if you have none.
+  boards: Array.isArray(rydr.boards) ? rydr.boards : undefined,
   isLive: hasFlag("live"), // draft by default; pass --live to publish
 };
 

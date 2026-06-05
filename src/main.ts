@@ -26,10 +26,17 @@ async function boot(): Promise<void> {
   // session.setChrome(false)            → hide the shell navbar during immersive play
   // session.setChrome(true)             → show it again on menus
   // session.setRoute("play")            → project your internal route into the top URL
-  // session.submitScore(boardId, value) → leaderboards (when the data services land)
+  //
+  // Backend services are live (leaderboards, saveRun, game-data store, asset upload, realtime
+  // rooms) — see the SDK README's "Backend services" section. Leaderboard boards are declared
+  // in package.json's `rydr.boards` (see SETUP.md), then submitScore("<id>", value) works.
   //
   // There is NO activity/FIT API. The platform records every session automatically
   // from its own hardware stream — your game does nothing for recording.
+  //
+  // Persistence is optional — a session-only game needs none. When you do need it,
+  // saves/content/leaderboards live on the SDK session (one shared backend for all
+  // RYDR games; never stand up your own) — see @rydr/game-sdk for the API.
 }
 
 void boot();

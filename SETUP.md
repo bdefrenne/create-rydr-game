@@ -23,9 +23,10 @@ npm install              # installs deps AND fetches @rydr/game-sdk so you can r
 After `npm install` (step 1) the package is on disk; read it instead of guessing:
 - `node_modules/@rydr/game-sdk/dist/index.d.ts` — the exact, authoritative API:
   `connectToPlatform`, `PlatformSession` (`hardware`, `identity`, `onButton`,
-  `setChrome`/`setRoute`, trainer control, lifecycle), `HardwareSnapshot`,
-  `ScopedIdentity`, `Capability`, `createDevHarness`.
-- `node_modules/@rydr/game-sdk/README.md` — usage + an API overview.
+  `setChrome`/`setRoute`, trainer control, lifecycle, and the **backend services** —
+  `submitScore`/`getLeaderboard`, `saveRun`, the data-store methods, `getUploadUrl`,
+  `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, `Capability`, `createDevHarness`.
+- `node_modules/@rydr/game-sdk/README.md` — usage + an API overview, incl. *Backend services*.
 
 Then read this repo's `CLAUDE.md` for the guest **rules** (content-only, SDK-only, etc.).
 The package is the source of truth — never invent SDK methods.
@@ -39,6 +40,17 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
   and `package.json` (`description`, `rydr.title`, and the `dev` script).
 - Optionally set `rydr.icon` / `rydr.accent` in `package.json` (used by the library tile);
   the defaults are fine.
+- **Leaderboards (only if your game scores).** `rydr.boards` ships empty (`[]`) — a session-only
+  game leaves it so. If your game ranks players, declare one board per ranking in `rydr.boards`,
+  then call `session.submitScore("<id>", value)` with that id. Each board is
+  `{ id, valueType, sort, aggregate, label? }` — `sort` is `"asc"` (lower wins, e.g. time) or
+  `"desc"`; `aggregate` is `"best"|"last"|"sum"`; `valueType` is one of the display hints in the
+  SDK's `boards.ts` (`score`, `time`, `distance`, `speed`, `percent`, `duration`, `count`). E.g.:
+  ```jsonc
+  "boards": [{ "id": "score", "label": "High Scores", "valueType": "score", "sort": "desc", "aggregate": "best" }]
+  ```
+  The board only reaches the platform when you **register** (step 7) — submitting to an id that
+  isn't declared+registered is rejected.
 - Port defaults to `3400` (in `vite.config.ts` **and** the `dev` script's
   `--game http://localhost:<port>`); change both only if it clashes with something running.
 
@@ -53,6 +65,13 @@ with `setSimulation`/`setTargetPower` if relevant; `setChrome(false)` for immers
 `setRoute(path)` for shareable URLs. **Do nothing for activity/FIT recording** — the
 platform records every session automatically from its own hardware stream; there is no
 recording API to call.
+
+**Backend — don't reach for it too soon.** A session-only game (read hardware, play, let the
+platform record the activity) is complete and needs no backend. If/when you *do* need more, the
+shell backs it on the SDK session — never stand up your own: **leaderboards** (`submitScore`/
+`getLeaderboard`), **run records** (`saveRun`), a shared **game-data store** (`player` saves,
+`public` UGC, `shared` content), **asset hosting** (`getUploadUrl`), and **realtime rooms**
+(`joinRoom`). See `@rydr/game-sdk`'s README (*Backend services*) for each API.
 
 ## 5. Run it locally
 
@@ -74,10 +93,10 @@ git push -u origin main
 
 - Connect the repo to **Vercel** → it deploys on every push to `main` (the build clones only
   the **public** `@rydr/game-sdk`, so no tokens/secrets are needed). Note the production URL.
-- Register the game from the terminal — it reads slug/title/icon/accent from `package.json`'s
-  `rydr` block and POSTs to the platform registry. **The admin secret stays out of your
-  (the AI's) view** — ask the user to run it with the secret in their env, or to paste it at
-  the prompt:
+- Register the game from the terminal — it reads slug/title/icon/accent **and `boards`** from
+  `package.json`'s `rydr` block and POSTs to the platform registry. **The admin secret stays
+  out of your (the AI's) view** — ask the user to run it with the secret in their env, or to
+  paste it at the prompt:
 
   ```bash
   RYDR_ADMIN_SECRET=… npm run register -- --url https://<your-game>.vercel.app   # draft
@@ -86,3 +105,11 @@ git push -u origin main
 
   Drafts don't appear in the public library; preview on the shell via `?admin`, then re-run
   with `--live` (or flip **Live** in `?admin`) to publish.
+
+- **Registering is a separate step from deploying.** A Vercel deploy ships your *code*; it does
+  **not** touch the registry. Changing `rydr.boards` (or title/icon) only reaches the platform
+  when you **re-run `npm run register`** — otherwise a newly-declared board never appears and
+  `submitScore` to it is rejected.
+- **The repo is the source of truth.** `register` overwrites the whole manifest entry, so editing
+  boards in `?admin` is a *transient* quick-edit — the next `register` from the repo clobbers it.
+  Mirror any keeper edits back into `package.json`'s `rydr.boards`.
