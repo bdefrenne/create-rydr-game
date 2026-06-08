@@ -20,7 +20,7 @@
     "register": "node scripts/register.mjs"
   },
   "dependencies": {
-    "@rydr/game-sdk": "^1.6.0"
+    "@rydr/game-sdk": "^1.7.1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

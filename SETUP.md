@@ -91,7 +91,9 @@ The game gets **full hardware access — there are no capabilities to choose** (
 Implement it in `src/`: read live values from `session.hardware` (power/cadence/HR/speed)
 and `session.identity` (`ftp` is always a usable number — no fallback); drive resistance
 with `setSimulation`/`setTargetPower` if relevant; `setChrome(false)` for immersive play;
-`setRoute(path)` for shareable URLs. **Do nothing for activity/FIT recording** — the
+`setPowerBar(false)` to hide the shell's trainerless power bar where it doesn't belong (e.g. an
+editor or menu), `setPowerBar(true)` during play (both default to visible); `setRoute(path)` for
+shareable URLs. **Do nothing for activity/FIT recording** — the
 platform records every session automatically from its own hardware stream; there is no
 recording API to call.
 
@@ -140,9 +142,9 @@ project, matching the `@rydr/game-<slug>` package name.)
 ## 7. Deploy to a per-game Vercel project (GitHub-connected)
 
 Uses the **Vercel CLI** — install it once and `vercel login` (the project adopts your logged-in
-scope/team; nothing is hardcoded). The build clones only the **public** `@rydr/game-sdk`, so no
-tokens/secrets are needed. Project name convention: **`rydr-game-<slug>`** (already encoded in the
-`deploy:link` script).
+scope/team; nothing is hardcoded). The build installs only the **public** npm package
+`@rydr/game-sdk` (from the registry — not a GitHub clone), so no tokens/secrets are needed. Project
+name convention: **`rydr-game-<slug>`** (already encoded in the `deploy:link` script).
 
 ```bash
 npm run deploy:link    # `vercel link` → creates/links project rydr-game-<slug> (writes .vercel/, gitignored)
