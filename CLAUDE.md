@@ -46,8 +46,11 @@ Hard rules — keep to these:
   API on the SDK; never build your own FIT encoder or write activities to a backend.
 - **Immersive play:** `session.setChrome(false)` hides the navbar during play,
   `setChrome(true)` restores it on menus. Project internal routes with
-  `session.setRoute(path)` so the top URL is shareable/deep-linkable (honor
-  `session.initialPath` on load).
+  `session.setRoute(path)` so the top URL is shareable/deep-linkable. On a cold
+  load the shell hands you that tail as `session.initialPath` — **honor it**, but
+  decide per route: deep-linkable states (a level, a menu) should restore;
+  transient states (`gameover`, mid-run) have no context to restore, so route
+  them to a sane entry point instead of booting into a dead screen.
 - **The backend is a platform service — you never stand up your own.** A session-only game
   (read hardware, play, let the platform record the activity) needs no backend at all; don't
   reach for it too soon. When you *do*, the shell backs it **through the SDK session** — there
@@ -61,12 +64,15 @@ Hard rules — keep to these:
   owns — declare them in `package.json`'s `rydr.boards`, then `npm run register` pushes them to
   the platform so `submitScore(boardId, …)` works (an unknown `boardId` is rejected). The repo
   is the source of truth. See `SETUP.md`.
-- **Shipping is mandatory, not optional.** Creating a game isn't done until it's **deployed to a
-  per-game Vercel project** (`npm run deploy:link` + `npm run deploy`, GitHub-connected) and
-  **registered** (`npm run register`, secret from a gitignored `.env.local`) — **Live by default**
-  so it appears in the public library (pass `--draft` to register hidden, testable via `?admin`).
-  Don't stop at local dev. See `SETUP.md` (steps 6–8) — the
-  only reason to skip is the user explicitly saying they don't want to ship yet.
+- **Shipping is mandatory, not optional.** Creating a game isn't done until **all three** ship
+  deliverables exist, in order: (1) **pushed to a GitHub repo** (`rydr-game-<slug>`, created via the
+  `gh` CLI) → (2) **deployed** to its per-game, GitHub-connected Vercel project (`npm run deploy:link`
+  + `npm run deploy`) → (3) **registered** (`npm run register`, secret from a gitignored `.env.local`)
+  — **Live by default** so it appears in the public library (pass `--draft` to register hidden,
+  testable via `?admin`). A live deploy is **not** proof the repo exists — `vercel --prod` ships from
+  local without one; the GitHub repo is a required deliverable, not a side effect. Don't stop at local
+  dev. See `SETUP.md` (steps 6–8 + its Definition of done) — the only reason to skip is the user
+  explicitly saying they don't want to ship yet.
 
 ## The SDK is your reference — read it from the package
 

@@ -12,6 +12,20 @@ The only legitimate reason to stop before step 8 is the user **explicitly** sayi
 to ship yet.
 **Delete this file from the new game when done.**
 
+## 0. Prerequisites — install these before you start
+
+These are a **gate**, not a step you reach later. Set them up *before* step 1:
+
+- **`gh` (GitHub CLI)** and **`vercel` (Vercel CLI)** must both be **installed and
+  authenticated** — they are required, not optional. If either is missing, install it now
+  (`brew install gh` / `npm i -g vercel` on macOS, or https://cli.github.com /
+  https://vercel.com/cli) and authenticate (`gh auth login`, `vercel login`). A missing CLI is
+  **never** a reason to skip a step or to do something by hand instead.
+- **Gather these inputs from the user up front** (don't use a missing one as a reason to skip):
+  the game idea, a slug/title, a free port if `3400` is taken, the GitHub `<owner>` for the repo
+  (step 6), and the user's private `.env.local` (holding `ADMIN_SECRET`) to paste into the new
+  repo before registering (step 8).
+
 ## 1. Get into a fresh game folder
 
 This template is the **source — never build the game inside it.** Create a new **sibling
@@ -97,19 +111,21 @@ npm run dev   # your game + the RYDR shell at http://localhost:3100 (power slide
 
 ## 6. Create the GitHub repo + push
 
-The deploy below is **GitHub-connected** (Vercel auto-deploys on every push to `main`), so the repo
-comes first. **Use the `gh` CLI** — check `command -v gh`; if it's missing, **stop and ask the user
-to install + authenticate it** (`brew install gh` on macOS, or https://cli.github.com, then
-`gh auth login`). Don't fall back to creating the repo by hand — `gh` is much faster for every later
-push/PR, so it's worth installing once.
+**The GitHub repo is mandatory and comes before deploy.** The deploy below is **GitHub-connected**
+(Vercel auto-deploys on every push to `main`), so without the repo the deploy isn't wired correctly
+— and `npm run deploy` succeeding from local is **not** evidence this step is done. **Use the `gh`
+CLI** — it's required (see Prerequisites). If it still isn't available, install + `gh auth login`
+**now** (`brew install gh` on macOS, or https://cli.github.com); a missing `gh` is **never** a
+reason to skip creating the repo.
 
 ```bash
 git add -A && git commit -m "Initial RYDR game: <slug>"
 gh repo create <owner>/rydr-game-<slug> --private --source=. --push
 ```
 
-(Last resort only if the user genuinely can't install `gh`: have them create
-`github.com/<owner>/rydr-game-<slug>` empty, then `git remote add origin … && git push -u origin main`.)
+(Last resort only if the user genuinely can't install `gh`: still create the repo — have them make
+`github.com/<owner>/rydr-game-<slug>` empty, then `git remote add origin … && git push -u origin main`.
+Skipping the repo is not an option.)
 
 (Naming convention — all the same `rydr-game-<slug>`: the folder, the GitHub repo, and the Vercel
 project, matching the `@rydr/game-<slug>` package name.)
@@ -156,3 +172,18 @@ draft doesn't show in the public library but is previewable on the shell via `?a
 - **The repo is the source of truth.** `register` overwrites the whole manifest entry, so editing
   boards in `?admin` is a *transient* quick-edit — the next `register` from the repo clobbers it.
   Mirror any keeper edits back into `package.json`'s `rydr.boards`.
+
+## ✅ Definition of done
+
+A **Live game is not proof the repo step happened** — `vercel --prod` deploys straight from local
+even with no GitHub repo. Verify **every** box below before you claim the game is done. An unchecked
+GitHub-repo box means the game is **not done**, no matter what's live.
+
+- [ ] **GitHub repo exists and `main` is pushed** — `gh repo view <owner>/rydr-game-<slug>` succeeds
+      and `git remote -v` shows `origin`.
+- [ ] **Vercel project linked *and* git-connected** — `.vercel/` exists and `vercel git connect` was
+      run (so pushes to `main` auto-deploy).
+- [ ] **Production deploy succeeded** — `npm run deploy` printed a production URL.
+- [ ] **Registered in the library** — `npm run register -- --url …` succeeded (Live by default, or
+      `--draft` if the user asked).
+- [ ] **`SETUP.md` deleted** from the new game folder.
