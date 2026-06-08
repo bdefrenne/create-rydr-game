@@ -20,7 +20,7 @@
     "register": "node scripts/register.mjs"
   },
   "dependencies": {
-    "@rydr/game-sdk": "github:bdefrenne/rydr-game-sdk#semver:^1.4.0"
+    "@rydr/game-sdk": "^1.6.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
