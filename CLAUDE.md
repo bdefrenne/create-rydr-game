@@ -47,17 +47,25 @@ Hard rules — keep to these:
 - **Immersive play:** `session.setChrome(false)` hides the navbar during play,
   `setChrome(true)` restores it on menus. Project internal routes with
   `session.setRoute(path)` so the top URL is shareable/deep-linkable. On a cold
-  load the shell hands you that tail as `session.initialPath` — **honor it**, but
-  decide per route: deep-linkable states (a level, a menu) should restore;
-  transient states (`gameover`, mid-run) have no context to restore, so route
-  them to a sane entry point instead of booting into a dead screen.
+  load the shell **mounts your game at `game.url/<tail>`** — i.e. the deep-link tail
+  arrives as the iframe's real URL, so your own router/host resolves it directly.
+  **This means your deploy MUST serve every path you project via `setRoute`:** a SPA
+  rewrite for client routes (e.g. rewrite `/play` → `/index.html`), and a real built
+  file for separate documents (e.g. `run-editor.html`). The same tail is also handed
+  to you as `session.initialPath` for back-compat, but it's redundant for cold loads
+  now that the URL is authoritative. Decide per route what is deep-linkable:
+  deep-linkable states (a level, a menu) should restore; transient states
+  (`gameover`, mid-run) have no context to restore, so route them to a sane entry
+  point instead of booting into a dead screen.
 - **The backend is a platform service — you never stand up your own.** A session-only game
   (read hardware, play, let the platform record the activity) needs no backend at all; don't
   reach for it too soon. When you *do*, the shell backs it **through the SDK session** — there
   is nothing to add or host: **leaderboards** (`submitScore`/`getLeaderboard`), **run records**
   (`saveRun`/`getRun`), **replays/ghosts** (`saveReplay`/`getReplays`), a generic gameId-namespaced
   **game-data store** (`shared` content, `player` saves, `public` UGC), **asset hosting**
-  (`getUploadUrl`), and **realtime rooms** (`joinRoom`).
+  (`getUploadUrl`), and **realtime rooms** (`joinRoom` → presence, *trusted* opponent `telemetry`,
+  opaque `send`/`setState`, and server-stamped `scheduleEvent` for fair, head-start-free
+  countdowns/turns; your own watts are injected by the shell — you only read opponents').
   See `@rydr/game-sdk`'s README (*Backend services*) for how each works; don't learn the API
   from this file.
 - **Leaderboard boards are declared in *this repo*.** Boards are declarative config the game

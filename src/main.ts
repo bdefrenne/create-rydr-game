@@ -27,6 +27,17 @@ async function boot(): Promise<void> {
   // asset upload, realtime rooms) — see the SDK README's "Backend services" section. Leaderboard boards are declared
   // in package.json's `rydr.boards` (see SETUP.md), then submitScore("<id>", value) works.
   //
+  // --- Realtime multiplayer (optional) — the shell owns the socket, so it's trusted by construction ---
+  //   const room = session.joinRoom("race-1");
+  //   room.on("presence",  (members) => {/* roster — each is { playerId, name } */});
+  //   room.on("telemetry", (t) => {/* a peer's REAL hardware: t.playerId, t.power, t.cadence, t.heartRate */});
+  //   room.on("event",     (e) => {/* server-stamped orchestration — act at e.at: e.name, e.payload, e.from */});
+  //   room.send({ x, y });                       // opaque per-tick message to peers
+  //   room.setState({ phase: "racing" });        // opaque shared state (last-write-wins; late joiners get it)
+  //   room.scheduleEvent("go", { run: 0 }, at);  // a fair, head-start-free transition on the shared clock
+  // YOUR watts are injected into the room by the shell automatically — you only ever READ opponents'
+  // telemetry. Position/score travel over the opaque channel (not cheat-proof); telemetry is trusted.
+  //
   // There is NO activity/FIT API. The platform records every session automatically
   // from its own hardware stream — your game does nothing for recording.
   //

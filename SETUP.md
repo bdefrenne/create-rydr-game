@@ -95,6 +95,13 @@ with `setSimulation`/`setTargetPower` if relevant; `setChrome(false)` for immers
 platform records every session automatically from its own hardware stream; there is no
 recording API to call.
 
+> **Deep links — make your host serve them.** The shell mounts your game at
+> `game.url/<tail>`, so any route you project via `setRoute` becomes a real URL on your
+> origin (and is shareable/refreshable). Your Vercel deploy **must** resolve those paths:
+> add a SPA rewrite for each client route (e.g. `{ "source": "/(play|...)", "destination":
+> "/index.html" }` in `vercel.json`) and keep separate documents (e.g. `run-editor.html`)
+> as real build inputs. A projected route your host doesn't serve will 404 on refresh.
+
 **Backend — don't reach for it too soon.** A session-only game (read hardware, play, let the
 platform record the activity) is complete and needs no backend. If/when you *do* need more, the
 shell backs it on the SDK session — never stand up your own: **leaderboards** (`submitScore`/
