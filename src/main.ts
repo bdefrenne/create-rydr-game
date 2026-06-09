@@ -24,8 +24,9 @@ async function boot(): Promise<void> {
   // session.setRoute("play")            → project your internal route into the top URL
   //
   // Backend services are live (leaderboards, saveRun/getRun, replays/ghosts, game-data store,
-  // asset upload, realtime rooms) — see the SDK README's "Backend services" section. Leaderboard boards are declared
-  // in package.json's `rydr.boards` (see SETUP.md), then submitScore("<id>", value) works.
+  // asset upload, shared worlds via session.getWorld()/applyWorld, in-game editors via
+  // session.identity.isAdmin, realtime rooms) — see the SDK README for each. Leaderboard boards are
+  // declared in package.json's `rydr.boards` (see SETUP.md), then submitScore("<id>", value) works.
   //
   // --- Realtime multiplayer (optional) — the shell owns the socket, so it's trusted by construction ---
   //   const room = session.joinRoom("race-1");
