@@ -45,7 +45,7 @@ npm install              # installs deps AND fetches @rydr/game-sdk so you can r
 After `npm install` (step 1) the package is on disk; read it instead of guessing:
 - `node_modules/@rydr/game-sdk/dist/index.d.ts` — the exact, authoritative API:
   `connectToPlatform`, `PlatformSession` (`hardware`, `identity`, `onButton`,
-  `setChrome`/`setRoute`, trainer control, lifecycle, and the **backend services** —
+  `setMenu`/`setRoute`, trainer control, lifecycle, and the **backend services** —
   `submitScore`/`getLeaderboard`, `saveRun`/`getRun`, `saveReplay`/`getReplays`, the data-store
   methods, `getUploadUrl`, `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, `Capability`.
 - `node_modules/@rydr/game-sdk/README.md` — usage + an API overview, incl. *Backend services*.
@@ -90,10 +90,11 @@ The game gets **full hardware access — there are no capabilities to choose** (
 
 Implement it in `src/`: read live values from `session.hardware` (power/cadence/HR/speed)
 and `session.identity` (`ftp` is always a usable number — no fallback); drive resistance
-with `setSimulation`/`setTargetPower` if relevant; `setChrome(false)` for immersive play;
+with `setSimulation`/`setTargetPower` if relevant; `setMenu(false)` for immersive play;
 `setPowerBar(false)` to hide the shell's trainerless power bar where it doesn't belong (e.g. an
-editor or menu), `setPowerBar(true)` during play (both default to visible); `setRoute(path)` for
-shareable URLs. **Do nothing for activity/FIT recording** — the
+editor or menu), `setPowerBar(true)` during play (both default to visible);
+`setMenu(false)`/`setMenu(true)` to hide/show the shell's in-game platform menu — the hamburger
+that opens Exit + hardware (also defaults to visible); `setRoute(path)` for shareable URLs. **Do nothing for activity/FIT recording** — the
 platform records every session automatically from its own hardware stream; there is no
 recording API to call.
 

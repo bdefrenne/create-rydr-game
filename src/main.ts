@@ -19,8 +19,8 @@ async function boot(): Promise<void> {
   // --- Lifecycle hooks you'll likely use (uncomment as needed) ---
   // session.identity.ftp / .weightKg / .displayName  → scoped, PII-free player data
   //   (ftp is ALWAYS a usable number — the platform defaults it; no fallback needed)
-  // session.setChrome(false)            → hide the shell navbar during immersive play
-  // session.setChrome(true)             → show it again on menus
+  // session.setMenu(false)              → hide the shell's in-game platform menu (hamburger) during immersive play
+  // session.setMenu(true)               → show it again on menus
   // session.setRoute("play")            → project your internal route into the top URL
   //
   // Backend services are live (leaderboards, saveRun/getRun, replays/ghosts, game-data store,

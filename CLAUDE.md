@@ -44,8 +44,9 @@ Hard rules — keep to these:
 - **The platform records the activity + FIT automatically — you do nothing.** Every
   session is recorded by the shell from its own hardware stream. There is **no** activity
   API on the SDK; never build your own FIT encoder or write activities to a backend.
-- **Immersive play:** `session.setChrome(false)` hides the navbar during play,
-  `setChrome(true)` restores it on menus. Project internal routes with
+- **Immersive play:** the shell navbar is always hidden while a game runs (no game control
+  needed). `session.setMenu(false)`/`(true)` hides/shows the shell's in-game platform menu —
+  the hamburger that opens Exit + hardware (defaults to visible). Project internal routes with
   `session.setRoute(path)` so the top URL is shareable/deep-linkable. On a cold
   load the shell **mounts your game at `game.url/<tail>`** — i.e. the deep-link tail
   arrives as the iframe's real URL, so your own router/host resolves it directly.
@@ -88,7 +89,7 @@ Don't learn the API from this file. The **`@rydr/game-sdk` package is the single
 truth** (it ships its own docs + types). After `npm install`, read:
 
 - **`node_modules/@rydr/game-sdk/dist/index.d.ts`** — the exact, current API: the full
-  `PlatformSession` (`hardware`, `identity`, `onButton`, `setChrome`/`setRoute`,
+  `PlatformSession` (`hardware`, `identity`, `onButton`, `setMenu`/`setRoute`,
   trainer control, lifecycle, **backend services** — `submitScore`/`getLeaderboard`,
   `saveRun`, the `get`/`save`/`list` data methods, `getUploadUrl`, `joinRoom`),
   `HardwareSnapshot`, `ScopedIdentity`, the backend types (`BoardDefinition`, `GameDoc`,
