@@ -98,12 +98,21 @@ that opens Exit + hardware (also defaults to visible); `setRoute(path)` for shar
 platform records every session automatically from its own hardware stream; there is no
 recording API to call.
 
-> **Deep links — make your host serve them.** The shell mounts your game at
+> **Deep links — your host must serve them.** The shell mounts your game at
 > `game.url/<tail>`, so any route you project via `setRoute` becomes a real URL on your
-> origin (and is shareable/refreshable). Your Vercel deploy **must** resolve those paths:
-> add a SPA rewrite for each client route (e.g. `{ "source": "/(play|...)", "destination":
-> "/index.html" }` in `vercel.json`) and keep separate documents (e.g. `run-editor.html`)
-> as real build inputs. A projected route your host doesn't serve will 404 on refresh.
+> origin (and is shareable/refreshable). On a direct hit / refresh of e.g.
+> `/game/<you>/play/abc`, Vercel receives a request for `/play/abc` — with no rewrite it 404s
+> *before* your `index.html` ever loads, and the shell shows "not found". The scaffolded
+> `vercel.json` already ships the SPA catch-all that fixes this:
+>
+> ```json
+> "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+> ```
+>
+> This is safe: Vercel applies `rewrites` only *after* a filesystem miss, so real documents
+> (`index.html`, `editor.html`, `run-editor.html`) and `/assets/*` are still served directly —
+> only client routes fall through to `index.html`, which boots and routes from
+> `session.initialPath`. Keep separate documents as real build inputs and you're done.
 
 **Backend — don't reach for it too soon.** A session-only game (read hardware, play, let the
 platform record the activity) is complete and needs no backend. If/when you *do* need more, the
