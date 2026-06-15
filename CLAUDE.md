@@ -15,6 +15,12 @@ speed, the turret's fire rate…). **If your game's main mechanic isn't driven b
 - **FTP-relative, never raw watts.** Scale by `power / session.identity.ftp` so a 150 W rider and a
   350 W rider get the same challenge. Hardcoding "above 200 W" anywhere is a bug. (`ftp` is always
   a usable number — no fallback needed.)
+- **Two power values — use the right one; don't hand-roll a filter.** The snapshot gives you
+  both `hw.power` (raw, jumpy, arrives ~1–4Hz) and **`hw.smoothedPower`** (an SDK-provided,
+  frame-rate-independent EMA). Drive **continuous control** (cursor, position, speed) off
+  `smoothedPower` so it doesn't jitter; show **raw `power`** for a watts readout / metrics where
+  the true instantaneous number matters. Smoothing defaults to 0.06s; override per game with
+  `rydr.powerSmoothing` (seconds) in `package.json` to make it smoother/snappier.
 - **The game creates demand; the rider responds.** No prescriptive targets — no "hold 250 W for
   4 min", no ERG, no zone bar to sit inside. Instead the *game* makes the rider want to push: a
   surge of enemies → push harder; a hill → dig in; lulls → recover. The pacing of those events
@@ -44,6 +50,13 @@ Hard rules — keep to these:
 - **The platform records the activity + FIT automatically — you do nothing.** Every
   session is recorded by the shell from its own hardware stream. There is **no** activity
   API on the SDK; never build your own FIT encoder or write activities to a backend.
+- **Highlights are opt-in (and the only thing the shell can't capture for you).** Because
+  your game runs cross-origin, the shell can't read your canvas — *you* grab the pixels and
+  call `session.captureMoment(canvasOrBlob, { label })` (a still) or `session.captureClip(blob,
+  { label })` (a short video, e.g. `canvas.captureStream()` → `MediaRecorder`). The shell
+  uploads them and attaches them to the session; the player shares them from the results
+  screen. Keep a short rolling clip buffer, cap clips ~3–6s, prefer `video/mp4`, and for a
+  WebGL still use `preserveDrawingBuffer: true` (or capture in the same frame) or it reads blank.
 - **Immersive play:** the shell navbar is always hidden while a game runs (no game control
   needed). `session.setMenu(false)`/`(true)` hides/shows the shell's in-game platform menu —
   the hamburger that opens Exit + hardware (defaults to visible). Project internal routes with

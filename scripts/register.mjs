@@ -72,6 +72,10 @@ const manifest = {
   // Declarative leaderboard boards (from `rydr.boards`); the shell hands them to the game as
   // `session.boards` and renders the /leaderboards hub. Omit the field if you have none.
   boards: Array.isArray(rydr.boards) ? rydr.boards : undefined,
+  // Optional power-smoothing time constant (s) for the SDK's `hardware.current.smoothedPower`.
+  // Omit `rydr.powerSmoothing` to use the SDK default (0.06s).
+  powerSmoothing:
+    typeof rydr.powerSmoothing === "number" && rydr.powerSmoothing >= 0 ? rydr.powerSmoothing : undefined,
   isLive: !hasFlag("draft"), // LIVE by default; pass --draft to register as a hidden draft
 };
 

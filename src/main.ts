@@ -11,6 +11,8 @@ async function boot(): Promise<void> {
   session.ready();
 
   // --- Demo: show the live power the shell bridges from the trainer/slider. ---
+  // `hw.power` is raw; for a steady control signal read `hw.smoothedPower` (an SDK EMA) instead —
+  // tune it with `rydr.powerSmoothing` in package.json (seconds), or omit for the 0.06s default.
   const powerEl = document.getElementById("power")!;
   session.hardware.subscribe((hw) => {
     powerEl.textContent = String(Math.round(hw.power));
@@ -41,6 +43,17 @@ async function boot(): Promise<void> {
   //
   // There is NO activity/FIT API. The platform records every session automatically
   // from its own hardware stream — your game does nothing for recording.
+  //
+  // --- Highlights (optional) — capture shareable moments from your own canvas ---
+  // The shell attaches these to the recorded session; the player sees them on the post-game
+  // results screen + in profile history, and can share them (Strava/IG/…) from there.
+  //   await session.captureMoment(myCanvas, { label: "finish" });   // a still (Blob/canvas/dataURL)
+  //   await session.captureClip(clipBlob,  { label: "sprint" });    // a short video clip
+  // captureClip wants a finished video Blob — typically canvas.captureStream() → MediaRecorder.
+  // Tips: keep a short rolling MediaRecorder buffer so a clip can include the seconds BEFORE the
+  // moment; cap it ~3–6s and downscale to keep uploads small; prefer video/mp4 where supported
+  // (Safari) — webm (Chrome) shares poorly to some targets. For a WebGL still, create the context
+  // with `preserveDrawingBuffer: true` or capture in the same frame as a render, or it reads blank.
   //
   // Persistence is optional — a session-only game needs none. When you do need it,
   // saves/content/leaderboards live on the SDK session (one shared backend for all

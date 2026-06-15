@@ -89,7 +89,10 @@ The game gets **full hardware access — there are no capabilities to choose** (
 `capabilities` list; `connectToPlatform({ gameId })` grants everything).
 
 Implement it in `src/`: read live values from `session.hardware` (power/cadence/HR/speed)
-and `session.identity` (`ftp` is always a usable number — no fallback); drive resistance
+and `session.identity` (`ftp` is always a usable number — no fallback). For a steady control
+signal, prefer **`session.hardware.current.smoothedPower`** (an SDK EMA — don't hand-roll a
+filter) over raw `power`; tune it per game with `rydr.powerSmoothing` (seconds) in
+`package.json`, or omit for the 0.06s default. Drive resistance
 with `setSimulation`/`setTargetPower` if relevant; `setMenu(false)` for immersive play;
 `setPowerBar(false)` to hide the shell's trainerless power bar where it doesn't belong (e.g. an
 editor or menu), `setPowerBar(true)` during play (both default to visible);
