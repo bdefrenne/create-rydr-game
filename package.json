@@ -12,6 +12,7 @@
   },
   "scripts": {
     "dev": "concurrently -k -n game,shell \"vite\" \"npx -y --package github:bdefrenne/rydr-platform rydr-dev-shell --slug __SLUG__ --title \\\"__TITLE__\\\" --game http://localhost:3400\"",
+    "update": "npm install $(node -p \"[...Object.keys(require('./package.json').dependencies||{}),...Object.keys(require('./package.json').devDependencies||{})].filter(d=>d.startsWith('@rydr/')).map(d=>d+'@latest').join(' ')\")",
     "build": "tsc && vite build",
     "typecheck": "tsc -p tsconfig.json",
     "preview": "vite preview",
@@ -20,7 +21,7 @@
     "register": "node scripts/register.mjs"
   },
   "dependencies": {
-    "@rydr/game-sdk": "^1.12.0"
+    "@rydr/game-sdk": "^1.14.1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
