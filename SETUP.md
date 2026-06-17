@@ -74,6 +74,12 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
   ```
   The board only reaches the platform when you **register** (step 8) — submitting to an id that
   isn't declared+registered is rejected.
+
+  **Don't partition boards by input source yourself.** The shell auto-splits every board by
+  power source (keyboard vs trainer) — a trainerless effort never ranks against a pedalled one —
+  appending it to your `key` on both submit and read, symmetrically. Pass only your own dimension
+  (e.g. a track id) as `key`; in-game you always read back the board matching the current input,
+  and the platform `/leaderboards` hub shows the trainer boards.
 - Port defaults to `3400` (in `vite.config.ts` **and** the `dev` script's
   `--game http://localhost:<port>`); change both only if it clashes with something running.
 
@@ -93,6 +99,10 @@ and `session.identity` (`ftp` is always a usable number — no fallback). For a 
 signal, prefer **`session.hardware.current.smoothedPower`** (an SDK EMA — don't hand-roll a
 filter) over raw `power`; tune it per game with `rydr.powerSmoothing` (seconds) in
 `package.json`, or omit for the 0.06s default. Drive resistance
+Read controller buttons with `session.onButton`/`session.isDown` (canonical, source-agnostic
+`PRIMARY`/`SECONDARY`/`UP`/`DOWN`/`LEFT`/`RIGHT`); `session.hardware.current.controllerConnected`
+tells you whether a non-keyboard controller (Zwift Play/gamepad/phone) is connected, so you can
+vary behaviour by input setup (e.g. an XP multiplier) — it never reveals which device. Drive resistance
 with `setSimulation`/`setTargetPower` if relevant; `setMenu(false)` for immersive play;
 `setPowerBar(false)` to hide the shell's trainerless power bar where it doesn't belong (e.g. an
 editor or menu), `setPowerBar(true)` during play (both default to visible);
