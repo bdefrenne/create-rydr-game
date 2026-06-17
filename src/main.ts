@@ -18,6 +18,14 @@ async function boot(): Promise<void> {
     powerEl.textContent = String(Math.round(hw.power));
   });
 
+  // --- Controller input (canonical, source-agnostic) ---
+  // session.onButton((e) => {...})   → button edges: e.name PRIMARY/SECONDARY/UP/DOWN/LEFT/RIGHT, e.edge down/up
+  // session.isDown("PRIMARY")        → poll a held button in your game loop
+  // hw.controllerConnected           → true when a non-keyboard controller (Zwift Play/gamepad/phone) is
+  //   connected (false on keyboard-only). Vary behaviour by input setup, e.g. an XP multiplier:
+  //     const xpMul = session.hardware.current.controllerConnected ? 1.5 : 1.0;
+  //   The platform never tells you WHICH device — just whether a real controller is present.
+  //
   // --- Lifecycle hooks you'll likely use (uncomment as needed) ---
   // session.identity.ftp / .weightKg / .displayName  → scoped, PII-free player data
   //   (ftp is ALWAYS a usable number — the platform defaults it; no fallback needed)
@@ -26,9 +34,20 @@ async function boot(): Promise<void> {
   // session.setRoute("play")            → project your internal route into the top URL
   //
   // Backend services are live (leaderboards, saveRun/getRun, replays/ghosts, game-data store,
-  // asset upload, shared worlds via session.getWorld()/applyWorld, in-game editors via
+  // asset upload, shared worlds via session.getWorld(), in-game editors via
   // session.identity.isAdmin, realtime rooms) — see the SDK README for each. Leaderboard boards are
   // declared in package.json's `rydr.boards` (see SETUP.md), then submitScore("<id>", value) works.
+  //
+  // --- 3D world (optional) — render a shared platform environment in three.js ---
+  // Import from `@rydr/game-sdk/three` (needs `three`). `loadWorld` fetches + decodes + caches the
+  // world ONCE and returns a handle, so a restart never reloads the map. Hold the handle across runs:
+  //   const world = await loadWorld(await session.getWorld(id), { placement, mergeStatics: true });
+  //   world.attach(scene);   // start / resume
+  //   world.detach();        // restart that may resume — cheap, keeps it decoded + on the GPU
+  //   world.dispose();       // real teardown / switching worlds — frees GPU memory + evicts the cache
+  // NEVER geometry.dispose() the world group yourself — it's shared with the cache; use dispose().
+  // `mergeStatics: true` collapses the world to ≈one draw call per material (big render-CPU win) —
+  // you write no merge code. Articulated objects (turrets, wheels): mergeByMaterial(group, { boundaries }).
   //
   // --- Realtime multiplayer (optional) — the shell owns the socket, so it's trusted by construction ---
   //   const room = session.joinRoom("race-1");
