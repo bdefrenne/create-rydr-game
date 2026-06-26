@@ -46,8 +46,8 @@ After `npm install` (step 1) the package is on disk; read it instead of guessing
 - `node_modules/@rydr/game-sdk/dist/index.d.ts` — the exact, authoritative API:
   `connectToPlatform`, `PlatformSession` (`hardware`, `identity`, `onButton`,
   `setMenu`/`setRoute`, trainer control, lifecycle, and the **backend services** —
-  `submitScore`/`getLeaderboard`, `saveRun`/`getRun`, `saveReplay`/`getReplays`, the data-store
-  methods, `getUploadUrl`, `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, `Capability`.
+  `startRun`/`saveRun`/`getRun` (runs + their scores), `getLeaderboard`, `saveReplay`/`getReplays`,
+  the data-store methods, `getUploadUrl`, `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, `Capability`.
 - `node_modules/@rydr/game-sdk/README.md` — usage + an API overview, incl. *Backend services*.
 
 Then read this repo's `CLAUDE.md` for the guest **rules** (content-only, SDK-only, etc.).
@@ -65,7 +65,8 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
   the defaults are fine.
 - **Leaderboards (only if your game scores).** `rydr.boards` ships empty (`[]`) — a session-only
   game leaves it so. If your game ranks players, declare one board per ranking in `rydr.boards`,
-  then call `session.submitScore("<id>", value)` with that id. Each board is
+  then submit to it when a run completes: `session.saveRun({ scores: [{ boardId: "<id>", value }] })`.
+  Each board is
   `{ id, valueType, sort, aggregate, label? }` — `sort` is `"asc"` (lower wins, e.g. time) or
   `"desc"`; `aggregate` is `"best"|"last"|"sum"`; `valueType` is one of the display hints in the
   SDK's `boards.ts` (`score`, `time`, `distance`, `speed`, `percent`, `duration`, `count`). E.g.:
@@ -129,8 +130,8 @@ recording API to call.
 
 **Backend — don't reach for it too soon.** A session-only game (read hardware, play, let the
 platform record the activity) is complete and needs no backend. If/when you *do* need more, the
-shell backs it on the SDK session — never stand up your own: **leaderboards** (`submitScore`/
-`getLeaderboard`), **run records** (`saveRun`/`getRun`), **replays/ghosts** (`saveReplay`/
+shell backs it on the SDK session — never stand up your own: **runs + leaderboards** (`startRun`/
+`saveRun`/`getRun` + `getLeaderboard`), **replays/ghosts** (`saveReplay`/
 `getReplays`), a shared **game-data store** (`player` saves, `public` UGC, `shared` content),
 **asset hosting** (`getUploadUrl`), and **realtime rooms** (`joinRoom`). See `@rydr/game-sdk`'s
 README (*Backend services*) for each API.
@@ -200,7 +201,7 @@ draft doesn't show in the public library but is previewable on the shell via `?a
 - **Registering is a separate step from deploying.** A Vercel deploy ships your *code*; it does
   **not** touch the registry. Changing `rydr.boards` (or title/icon) only reaches the platform
   when you **re-run `npm run register`** — otherwise a newly-declared board never appears and
-  `submitScore` to it is rejected.
+  a `saveRun` score to it is rejected.
 - **The repo is the source of truth.** `register` overwrites the whole manifest entry, so editing
   boards in `?admin` is a *transient* quick-edit — the next `register` from the repo clobbers it.
   Mirror any keeper edits back into `package.json`'s `rydr.boards`.

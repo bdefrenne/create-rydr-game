@@ -16,11 +16,14 @@ speed, the turret's fire rate…). **If your game's main mechanic isn't driven b
   350 W rider get the same challenge. Hardcoding "above 200 W" anywhere is a bug. (`ftp` is always
   a usable number — no fallback needed.)
 - **Two power values — use the right one; don't hand-roll a filter.** The snapshot gives you
-  both `hw.power` (raw, jumpy, arrives ~1–4Hz) and **`hw.smoothedPower`** (an SDK-provided,
-  frame-rate-independent EMA). Drive **continuous control** (cursor, position, speed) off
-  `smoothedPower` so it doesn't jitter; show **raw `power`** for a watts readout / metrics where
-  the true instantaneous number matters. Smoothing defaults to 0.06s; override per game with
+  both `hw.power` (raw, jumpy, arrives at the trainer's native rate ~10Hz) and **`hw.smoothedPower`**
+  (an SDK-provided, frame-rate-independent EMA). Drive **continuous control** (cursor, position,
+  speed) off `smoothedPower` so it doesn't jitter; show **raw `power`** for a watts readout / metrics
+  where the true instantaneous number matters. Smoothing defaults to 0.06s; override per game with
   `rydr.powerSmoothing` (seconds) in `package.json` to make it smoother/snappier.
+- **Stream rate is yours to cap.** The shell streams at the trainer's native rate by default; call
+  `session.setHardwareRate(hz)` to cap it (anti-aliased — a ceiling, never an upsampler), or
+  `session.setHardwareRate(null)` for no limit. Callable any time.
 - **The game creates demand; the rider responds.** No prescriptive targets — no "hold 250 W for
   4 min", no ERG, no zone bar to sit inside. Instead the *game* makes the rider want to push: a
   surge of enemies → push harder; a hill → dig in; lulls → recover. The pacing of those events
@@ -71,11 +74,21 @@ Hard rules — keep to these:
   deep-linkable states (a level, a menu) should restore; transient states
   (`gameover`, mid-run) have no context to restore, so route them to a sane entry
   point instead of booting into a dead screen.
+- **`/replay/:runId` is REQUIRED if you save replays.** A replay is only watchable inside
+  the game, so the platform deep-links a finished run to
+  `https://rydr-platform.vercel.app/game/{slug}/replay/{runId}` — which arrives as your route
+  `replay/{runId}` (the iframe URL and `session.initialPath`). On that route, read the `runId`
+  tail, `await session.getReplay(runId)`, and play it back **read-only** (no hardware input, no
+  recording, no score/run save). The URL carries only the `runId` — which level/mission and the
+  frames all come from the replay/run you fetch by id, so the route is the same shape for every
+  game. Run-finished Telegram notifications and leaderboard "watch ghost" links point straight
+  here, so a game that calls `saveReplay` but doesn't serve this route ships a dead link. A
+  session-only game (no `saveReplay`) doesn't need it.
 - **The backend is a platform service — you never stand up your own.** A session-only game
   (read hardware, play, let the platform record the activity) needs no backend at all; don't
   reach for it too soon. When you *do*, the shell backs it **through the SDK session** — there
-  is nothing to add or host: **leaderboards** (`submitScore`/`getLeaderboard`), **run records**
-  (`saveRun`/`getRun`), **replays/ghosts** (`saveReplay`/`getReplays`), a generic gameId-namespaced
+  is nothing to add or host: **runs + leaderboards** (`startRun`/`saveRun`/`getRun` +
+  `getLeaderboard`), **replays/ghosts** (`saveReplay`/`getReplays`), a generic gameId-namespaced
   **game-data store** (`shared` content, `player` saves, `public` UGC), **asset hosting**
   (`getUploadUrl`), and **realtime rooms** (`joinRoom` → presence, *trusted* opponent `telemetry`,
   opaque `send`/`setState`, and server-stamped `scheduleEvent` for fair, head-start-free
@@ -84,7 +97,8 @@ Hard rules — keep to these:
   from this file.
 - **Leaderboard boards are declared in *this repo*.** Boards are declarative config the game
   owns — declare them in `package.json`'s `rydr.boards`, then `npm run register` pushes them to
-  the platform so `submitScore(boardId, …)` works (an unknown `boardId` is rejected). The repo
+  the platform so a run's `saveRun({ scores: [{ boardId, value }] })` works (an unknown `boardId`
+  is rejected). The repo
   is the source of truth. See `SETUP.md`.
 - **Shipping is mandatory, not optional.** Creating a game isn't done until **all three** ship
   deliverables exist, in order: (1) **pushed to a GitHub repo** (`rydr-game-<slug>`, created via the
@@ -104,7 +118,7 @@ truth** (it ships its own docs + types). After `npm install`, read:
 - **`node_modules/@rydr/game-sdk/dist/index.d.ts`** — the exact, current API: the full
   `PlatformSession` (`hardware`, `identity`, `onButton`, `isDown`/`buttonsDown`,
   `setMenu`/`setRoute`, trainer control, lifecycle, **backend services** —
-  `submitScore`/`getLeaderboard`, `saveRun`, the `get`/`save`/`list` data methods,
+  `startRun`/`saveRun`/`getRun`, `getLeaderboard`, the `get`/`save`/`list` data methods,
   `getUploadUrl`, `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, the backend types
   (`BoardDefinition`, `GameDoc`, `RoomHandle`), and the `Capability` union.
 

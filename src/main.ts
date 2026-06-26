@@ -18,6 +18,11 @@ async function boot(): Promise<void> {
     powerEl.textContent = String(Math.round(hw.power));
   });
 
+  // By default the shell streams hardware at the trainer's native rate (~10 Hz, varies by trainer).
+  // Cap it if you want fewer updates: session.setHardwareRate(4) → ~4 Hz (anti-aliased — power is
+  // the interval mean). It's a ceiling, never an upsampler. Callable any time, so you can cap in
+  // menus and lift the cap during play; session.setHardwareRate(null) restores the native rate.
+
   // --- Controller input (canonical, source-agnostic) ---
   // session.onButton((e) => {...})   → button edges: e.name PRIMARY/SECONDARY/UP/DOWN/LEFT/RIGHT, e.edge down/up
   // session.isDown("PRIMARY")        → poll a held button in your game loop
@@ -33,10 +38,22 @@ async function boot(): Promise<void> {
   // session.setMenu(true)               → show it again on menus
   // session.setRoute("play")            → project your internal route into the top URL
   //
-  // Backend services are live (leaderboards, saveRun/getRun, replays/ghosts, game-data store,
-  // asset upload, shared worlds via session.getWorld(), in-game editors via
+  // --- Replay route (REQUIRED if you save replays) ---
+  // A replay is only watchable inside the game, so the platform deep-links finished runs to
+  // `/game/<slug>/replay/<runId>`, which reaches you as the route `replay/<runId>` (see CLAUDE.md).
+  // Serve it: read the runId tail, fetch the replay, and play it back read-only (no input/recording).
+  //   const path = session.initialPath ?? location.pathname.replace(/^\//, "");
+  //   const m = /^replay\/(.+)$/.exec(path);
+  //   if (m) {
+  //     const r = await session.getReplay(m[1]);
+  //     if (r) { /* play r.body.frames read-only — no hardware input, no score/run save */ }
+  //   }
+  //
+  // Backend services are live (runs + leaderboards via startRun/saveRun/getRun, replays/ghosts,
+  // game-data store, asset upload, shared worlds via session.getWorld(), in-game editors via
   // session.identity.isAdmin, realtime rooms) — see the SDK README for each. Leaderboard boards are
-  // declared in package.json's `rydr.boards` (see SETUP.md), then submitScore("<id>", value) works.
+  // declared in package.json's `rydr.boards` (see SETUP.md), then a run's
+  // `saveRun({ scores: [{ boardId: "<id>", value }] })` submits to it.
   //
   // --- 3D world (optional) — render a shared platform environment in three.js ---
   // Import from `@rydr/game-sdk/three` (needs `three`). `loadWorld` fetches + decodes + caches the
