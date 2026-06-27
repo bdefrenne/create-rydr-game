@@ -101,7 +101,8 @@ signal, prefer **`session.hardware.current.smoothedPower`** (an SDK EMA — don'
 filter) over raw `power`; tune it per game with `rydr.powerSmoothing` (seconds) in
 `package.json`, or omit for the 0.06s default. Drive resistance
 Read controller buttons with `session.onButton`/`session.isDown` (canonical, source-agnostic
-`PRIMARY`/`SECONDARY`/`UP`/`DOWN`/`LEFT`/`RIGHT`); `session.hardware.current.controllerConnected`
+`A`/`B`/`Y`/`Z`/`UP`/`DOWN`/`LEFT`/`RIGHT`; house convention A=confirm, Z=back);
+`session.hardware.current.controllerConnected`
 tells you whether a non-keyboard controller (Zwift Play/gamepad/phone) is connected, so you can
 vary behaviour by input setup (e.g. an XP multiplier) — it never reveals which device. Drive resistance
 with `setSimulation`/`setTargetPower` if relevant; `setMenu(false)` for immersive play;

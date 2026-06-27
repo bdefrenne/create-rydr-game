@@ -123,14 +123,16 @@ truth** (it ships its own docs + types). After `npm install`, read:
   (`BoardDefinition`, `GameDoc`, `RoomHandle`), and the `Capability` union.
 
 **Controller buttons.** The canonical, source-agnostic vocabulary is `UP`/`DOWN`/`LEFT`/
-`RIGHT` plus two neutral action buttons `PRIMARY`/`SECONDARY` (the game assigns meaning —
-the platform never decides "confirm" vs "back"). Every controller (keyboard, phone, Zwift
-Play/Click) is normalised to these names. Buttons deliver **real hold edges**: `onButton`
-fires `{name, edge}` with `edge: "down"` on press and `"up"` on release — a held button
-emits one of each. For continuous actions (hold-to-brake, steer, charge), poll
-`session.isDown("PRIMARY")` / `session.buttonsDown()` in your game loop instead of tracking
-edges yourself. Multiple buttons can be held at once (e.g. `LEFT` + `PRIMARY`) — each is an
-independent edge/held-state. Never hard-code `"OK"`/`"CANCEL"` (the pre-1.15 names).
+`RIGHT` plus the four raw face buttons `A`/`B`/`Y`/`Z` (the game assigns meaning — the
+platform never decides "confirm" vs "back"). The **house convention** is `A` = confirm /
+primary action, `Z` = back / cancel, with `B`/`Y` as contextual extras. Every controller
+(keyboard, phone, Zwift Play/Click) is normalised to these names. Buttons deliver **real
+hold edges**: `onButton` fires `{name, edge}` with `edge: "down"` on press and `"up"` on
+release — a held button emits one of each. For continuous actions (hold-to-brake, steer,
+charge), poll `session.isDown("A")` / `session.buttonsDown()` in your game loop instead of
+tracking edges yourself. Multiple buttons can be held at once (e.g. `LEFT` + `A`) — each is
+an independent edge/held-state. The neutral `PRIMARY`/`SECONDARY` names were removed in SDK
+v3.0.0 — never use them (nor the pre-1.15 `"OK"`/`"CANCEL"`).
 - **`node_modules/@rydr/game-sdk/README.md`** — usage + an API overview.
 
 If anything about the API is unclear, open those — never guess.

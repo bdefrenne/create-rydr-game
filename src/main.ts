@@ -24,8 +24,9 @@ async function boot(): Promise<void> {
   // menus and lift the cap during play; session.setHardwareRate(null) restores the native rate.
 
   // --- Controller input (canonical, source-agnostic) ---
-  // session.onButton((e) => {...})   → button edges: e.name PRIMARY/SECONDARY/UP/DOWN/LEFT/RIGHT, e.edge down/up
-  // session.isDown("PRIMARY")        → poll a held button in your game loop
+  // session.onButton((e) => {...})   → button edges: e.name A/B/Y/Z/UP/DOWN/LEFT/RIGHT, e.edge down/up
+  // session.isDown("A")              → poll a held button in your game loop
+  //   House convention: A = confirm, Z = back; B/Y are contextual (game-assigned).
   // hw.controllerConnected           → true when a non-keyboard controller (Zwift Play/gamepad/phone) is
   //   connected (false on keyboard-only). Vary behaviour by input setup, e.g. an XP multiplier:
   //     const xpMul = session.hardware.current.controllerConnected ? 1.5 : 1.0;
