@@ -25,6 +25,8 @@ async function boot(): Promise<void> {
 
   // --- Controller input (canonical, source-agnostic) ---
   // session.onButton((e) => {...})   → button edges: e.name A/B/Y/Z/UP/DOWN/LEFT/RIGHT, e.edge down/up
+  //   Default: ONE `down` per press (held-button re-emits swallowed) — right for menus.
+  //   Hold-to-repeat: session.onButton((e) => {...}, { repeats: true }) then branch on e.repeat.
   // session.isDown("A")              → poll a held button in your game loop
   //   House convention: A = confirm, Z = back; B/Y are contextual (game-assigned).
   // hw.controllerConnected           → true when a non-keyboard controller (Zwift Play/gamepad/phone) is
@@ -35,6 +37,12 @@ async function boot(): Promise<void> {
   // --- Lifecycle hooks you'll likely use (uncomment as needed) ---
   // session.identity.ftp / .weightKg / .displayName  → scoped, PII-free player data
   //   (ftp is ALWAYS a usable number — the platform defaults it; no fallback needed)
+  //   `identity.ftp` is the rider's DIFFICULTY knob, and it's LIVE: the rider can retune it mid-ride.
+  //   Read it at init for your baseline, then subscribe so changes apply WITHOUT a relaunch:
+  //     let ftp = session.identity.ftp;                         // baseline at launch
+  //     session.onIdentityChange((id) => { ftp = id.ftp; });    // re-tuned mid-ride → apply live
+  //   Scale your difficulty off `ftp` (e.g. target watts = ftp * intensity). If you only read it
+  //   once at init, the rider's mid-ride change won't take effect until the next launch.
   // session.setMenu(false)              → hide the shell's in-game platform menu (hamburger) during immersive play
   // session.setMenu(true)               → show it again on menus
   // session.setRoute("play")            → project your internal route into the top URL

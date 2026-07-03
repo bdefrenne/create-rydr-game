@@ -15,6 +15,10 @@ speed, the turret's fire rate…). **If your game's main mechanic isn't driven b
 - **FTP-relative, never raw watts.** Scale by `power / session.identity.ftp` so a 150 W rider and a
   350 W rider get the same challenge. Hardcoding "above 200 W" anywhere is a bug. (`ftp` is always
   a usable number — no fallback needed.)
+- **Difficulty is live — honor it.** `session.identity.ftp` is the rider's difficulty knob and they
+  can retune it mid-ride. Subscribe with `session.onIdentityChange((id) => …)` and apply the new
+  `id.ftp` to your scaling; don't snapshot it once at init or mid-ride changes won't take effect
+  until the next launch.
 - **Two power values — use the right one; don't hand-roll a filter.** The snapshot gives you
   both `hw.power` (raw, jumpy, arrives at the trainer's native rate ~10Hz) and **`hw.smoothedPower`**
   (an SDK-provided, frame-rate-independent EMA). Drive **continuous control** (cursor, position,
@@ -127,12 +131,16 @@ truth** (it ships its own docs + types). After `npm install`, read:
 platform never decides "confirm" vs "back"). The **house convention** is `A` = confirm /
 primary action, `Z` = back / cancel, with `B`/`Y` as contextual extras. Every controller
 (keyboard, phone, Zwift Play/Click) is normalised to these names. Buttons deliver **real
-hold edges**: `onButton` fires `{name, edge}` with `edge: "down"` on press and `"up"` on
-release — a held button emits one of each. For continuous actions (hold-to-brake, steer,
-charge), poll `session.isDown("A")` / `session.buttonsDown()` in your game loop instead of
-tracking edges yourself. Multiple buttons can be held at once (e.g. `LEFT` + `A`) — each is
-an independent edge/held-state. The neutral `PRIMARY`/`SECONDARY` names were removed in SDK
-v3.0.0 — never use them (nor the pre-1.15 `"OK"`/`"CANCEL"`).
+hold edges**: `onButton` fires `{name, edge, repeat}` with `edge: "down"` on press and `"up"`
+on release. **By default `onButton(cb)` gives you one `down` per physical press** — the shell
+swallows the re-emits some controllers (Zwift Play/Ride) send while a button is held, so menus
+and discrete actions never double-fire. For hold-to-repeat / charge, opt in with
+`onButton(cb, { repeats: true })` and branch on `e.repeat` (`false` = fresh press, `true` =
+still-held re-emit). For continuous actions (hold-to-brake, steer), poll `session.isDown("A")`
+/ `session.buttonsDown()` in your game loop instead of tracking edges yourself. Multiple
+buttons can be held at once (e.g. `LEFT` + `A`) — each is an independent edge/held-state. The
+neutral `PRIMARY`/`SECONDARY` names were removed in SDK v3.0.0 — never use them (nor the
+pre-1.15 `"OK"`/`"CANCEL"`).
 - **`node_modules/@rydr/game-sdk/README.md`** — usage + an API overview.
 
 If anything about the API is unclear, open those — never guess.
