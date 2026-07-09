@@ -43,10 +43,12 @@ speed, the turret's fire rate…). **If your game's main mechanic isn't driven b
 This project runs **inside the RYDR platform shell** as a content-only iframe guest.
 Hard rules — keep to these:
 
-- **The SDK is your only platform dependency.** Depend on `@rydr/game-sdk` (public git dep)
-  and nothing else from the platform. **Never** add `@rydr/platform` to `package.json` — the
-  shell is fetched via `npx` for local dev only (see the `dev` script), so production builds
-  stay token-free.
+- **The SDK is your only platform dependency.** Depend on `@rydr/game-sdk` (public **npm** package,
+  resolved from the registry — **NOT** a git dep) and nothing else from the platform. Upgrade by
+  bumping the semver range + `npm install` (never hand-edit `package-lock.json`); a new SDK version is
+  installable only after its publish CI runs, **not** on a bare git tag. **Never** add `@rydr/platform`
+  to `package.json` — the shell is fetched via `npx` for local dev only (see the `dev` script), so
+  production builds stay token-free.
 - **No chrome.** The shell owns the navbar, background, hardware UI, and profile. Your
   `index.html` body stays transparent; you render only game content.
 - **Full access — no capabilities to choose.** `connectToPlatform({ gameId })` grants the
@@ -88,6 +90,18 @@ Hard rules — keep to these:
   game. Run-finished Telegram notifications and leaderboard "watch ghost" links point straight
   here, so a game that calls `saveReplay` but doesn't serve this route ships a dead link. A
   session-only game (no `saveReplay`) doesn't need it.
+- **Conversations & voice-over are built in — every game gets a `/voice-over-editor`.** Author NPC
+  dialogue in code with `defineConversation(id, [{ speaker, text }])` from `@rydr/game-sdk/conversations`
+  (`speaker` = a shared character id; its `voice`, set in Character Studio, drives Gemini French TTS).
+  `await def.open(host, session)` pops the dialogue card and plays each line's cached MP3; `advance()`
+  steps it. Voice-over is a pure enhancement — with nothing generated yet, lines are silent typewriter
+  text. Audio is **generated in your game's own editor**, scaffolded identically for every game:
+  `voice-over-editor.html` + `src/voice-over-editor/host.ts`, reached at
+  `/game/<slug>/voice-over-editor` (admin only). Conversations are your game's own `shared` gamedata
+  (collection `conversations`); the shell holds the TTS key and relays synthesis
+  (`session.generateVoiceover`). Running the game as admin auto-registers your code lines into the
+  editor. **Do not remove or rename the `voice-over-editor.html` entry / its vite build input + route
+  rewrite** — that's the per-game editor and it's the same in every game.
 - **The backend is a platform service — you never stand up your own.** A session-only game
   (read hardware, play, let the platform record the activity) needs no backend at all; don't
   reach for it too soon. When you *do*, the shell backs it **through the SDK session** — there
