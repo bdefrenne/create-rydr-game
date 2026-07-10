@@ -17,11 +17,10 @@
     "typecheck": "tsc -p tsconfig.json",
     "preview": "vite preview",
     "deploy:link": "vercel link --yes --project rydr-game-__SLUG__",
-    "deploy": "vercel --prod --yes",
-    "register": "node scripts/register.mjs"
+    "deploy": "vercel --prod --yes"
   },
   "dependencies": {
-    "@rydr/game-sdk": "^3.0.0"
+    "@rydr/game-sdk": "^3.5.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

@@ -62,7 +62,10 @@ async function boot(): Promise<void> {
   // game-data store, asset upload, shared worlds via session.getWorld(), in-game editors via
   // session.identity.isAdmin, realtime rooms) — see the SDK README for each. Leaderboard boards are
   // declared in package.json's `rydr.boards` (see SETUP.md), then a run's
-  // `saveRun({ scores: [{ boardId: "<id>", value }] })` submits to it.
+  // `saveRun({ scores: [{ boardId: "<id>", value }] })` submits to it. For a parameterized board
+  // (per-track/song/difficulty via `key`), also pass `displayText` — a human label for exactly what
+  // this was (e.g. "Silverstone GP · 3 laps") — so the platform hub + WR/PB pings can show it:
+  // `saveRun({ scores: [{ boardId: "lap", value, key: trackId, displayText: trackName }] })`.
   //
   // --- 3D world (optional) — render a shared platform environment in three.js ---
   // Import from `@rydr/game-sdk/three` (needs `three`). `loadWorld` fetches + decodes + caches the
@@ -99,6 +102,18 @@ async function boot(): Promise<void> {
   // moment; cap it ~3–6s and downscale to keep uploads small; prefer video/mp4 where supported
   // (Safari) — webm (Chrome) shares poorly to some targets. For a WebGL still, create the context
   // with `preserveDrawingBuffer: true` or capture in the same frame as a render, or it reads blank.
+  //
+  // --- Conversations & voice-over (optional) — spoken NPC dialogue in French, generated once ---
+  // Author conversations IN CODE at module scope in `src/conversations.ts` (already scaffolded), then
+  // play them here. `speaker` is a casting key (e.g. "narrator") you assign a voice to in the editor.
+  //   import { INTRO } from "./conversations";
+  //   const convo = await INTRO.open(document.body, session); // pops the card + plays each line's MP3
+  //   session.onButton((e) => { if (e.name === "A" && e.edge === "down") convo.advance(); });
+  // Voice-over is a pure enhancement: with no audio yet, lines show as silent typewriter text.
+  // To generate: open your game's editor (scaffolded: voice-over-editor.html + src/voice-over-editor/)
+  // at /game/__SLUG__/voice-over-editor (admin). It imports src/conversations.ts, so it lists your
+  // code-defined conversations with a "Sync from code" button; then cast each speaker's voice + context
+  // in the Characters tab and "Generate all missing". No in-game sync button needed — the editor owns it.
   //
   // Persistence is optional — a session-only game needs none. When you do need it,
   // saves/content/leaderboards live on the SDK session (one shared backend for all

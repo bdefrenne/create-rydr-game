@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>__TITLE__ — Voice-over Editor</title>
+  </head>
+  <body>
+    <!-- The shared VO editor (@rydr/game-sdk/voiceover-editor → mountVoiceoverEditor) builds the whole
+         frame inside #root and injects its own scoped CSS. This page is EXACTLY the same for every game
+         (only the title differs) — the "each game has its own /voice-over-editor" pattern. -->
+    <div id="root"></div>
+    <script type="module" src="/src/voice-over-editor/host.ts"></script>
+  </body>
+</html>

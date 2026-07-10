@@ -19,5 +19,5 @@ game-data store from the shell).
 Local dev (`npm run dev`) runs your game **plus** the RYDR shell at http://localhost:3100 —
 with a power slider, or a real trainer if one is paired. To ship, the agent follows `SETUP.md`
 steps 6–8: push to a GitHub repo, deploy to a per-game Vercel project (GitHub-connected, so
-pushes auto-deploy), then `npm run register` to add it to the platform as a draft anyone can
-test via the shell's `?admin`.
+pushes auto-deploy), then register it in the platform admin UI (`/admin.html`, signed in as an
+admin) as a draft that anyone signed in as a platform admin can test on the shell.

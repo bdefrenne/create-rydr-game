@@ -12,7 +12,15 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    // Live-link the local SDK for `tsc` too (mirrors the vite alias in vite.config.ts) so typecheck
+    // resolves the same in-progress SOURCE the bundler runs when `../rydr-game-sdk` is checked out.
+    // The `/*` wildcard covers every subpath — never enumerate them. Absent sibling (CI/prod) → TS
+    // falls back to the installed @rydr/game-sdk package. Keep in sync with vite.config.ts.
+    "paths": {
+      "@rydr/game-sdk": ["../rydr-game-sdk/src/index.ts"],
+      "@rydr/game-sdk/*": ["../rydr-game-sdk/src/*/index.ts"]
+    }
   },
   "include": ["src"]
 }

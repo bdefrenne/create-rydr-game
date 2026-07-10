@@ -114,16 +114,16 @@ Hard rules — keep to these:
   See `@rydr/game-sdk`'s README (*Backend services*) for how each works; don't learn the API
   from this file.
 - **Leaderboard boards are declared in *this repo*.** Boards are declarative config the game
-  owns — declare them in `package.json`'s `rydr.boards`, then `npm run register` pushes them to
-  the platform so a run's `saveRun({ scores: [{ boardId, value }] })` works (an unknown `boardId`
-  is rejected). The repo
-  is the source of truth. See `SETUP.md`.
+  owns — declare them in `package.json`'s `rydr.boards`, then an admin adds them to the game's entry
+  in the platform admin UI (`/admin.html`) so a run's `saveRun({ scores: [{ boardId, value }] })`
+  works (an unknown `boardId` is rejected). Keep `rydr.boards` in the repo as the canonical record.
+  See `SETUP.md`.
 - **Shipping is mandatory, not optional.** Creating a game isn't done until **all three** ship
   deliverables exist, in order: (1) **pushed to a GitHub repo** (`rydr-game-<slug>`, created via the
   `gh` CLI) → (2) **deployed** to its per-game, GitHub-connected Vercel project (`npm run deploy:link`
-  + `npm run deploy`) → (3) **registered** (`npm run register`, secret from a gitignored `.env.local`)
-  — **Live by default** so it appears in the public library (pass `--draft` to register hidden,
-  testable via `?admin`). A live deploy is **not** proof the repo exists — `vercel --prod` ships from
+  + `npm run deploy`) → (3) **registered** by an admin in the platform admin UI (`/admin.html`, no
+  secret — just signed in as an admin) — **Live** so it appears in the public library (or a hidden
+  draft, testable on the shell while signed in as a platform admin). A live deploy is **not** proof the repo exists — `vercel --prod` ships from
   local without one; the GitHub repo is a required deliverable, not a side effect. Don't stop at local
   dev. See `SETUP.md` (steps 6–8 + its Definition of done) — the only reason to skip is the user
   explicitly saying they don't want to ship yet.
