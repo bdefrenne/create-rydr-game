@@ -5,6 +5,14 @@
 > `npx degit bdefrenne/create-rydr-game ../rydr-game-<slug> && cd ../rydr-game-<slug>`
 > then follow `SETUP.md`. (If you're reading this inside `create-rydr-game`, do that first.)
 
+## Todo mapping
+
+When creating a task via the `todo` MCP (per the global "always work from the
+todo" rule): work on **this template tool itself** goes under the **RYDR**
+project → **Platform** board (`PLAT`). **If you are in a game scaffolded from
+this template** (not `create-rydr-game`), replace this line with that game's own
+board — a scaffolded game does *not* belong on Platform.
+
 ## The one rule: power is the controller
 
 A RYDR game is played by **pedaling**. The rider's **power output (watts) is the primary
@@ -67,8 +75,9 @@ Hard rules — keep to these:
   screen. Keep a short rolling clip buffer, cap clips ~3–6s, prefer `video/mp4`, and for a
   WebGL still use `preserveDrawingBuffer: true` (or capture in the same frame) or it reads blank.
 - **Immersive play:** the shell navbar is always hidden while a game runs (no game control
-  needed). `session.setMenu(false)`/`(true)` hides/shows the shell's in-game platform menu —
-  the hamburger that opens Exit + hardware (defaults to visible). Project internal routes with
+  needed). `session.setActivity("playing"|"menu")` marks active gameplay vs menu screens (and
+  drives the shell's resistance easing); the shell's in-game platform menu (Exit + hardware) is summoned by the MENU button / M key, not a persistent button.
+  Project internal routes with
   `session.setRoute(path)` so the top URL is shareable/deep-linkable. On a cold
   load the shell **mounts your game at `game.url/<tail>`** — i.e. the deep-link tail
   arrives as the iframe's real URL, so your own router/host resolves it directly.
@@ -80,6 +89,15 @@ Hard rules — keep to these:
   deep-linkable states (a level, a menu) should restore; transient states
   (`gameover`, mid-run) have no context to restore, so route them to a sane entry
   point instead of booting into a dead screen.
+- **Menu resistance — `session.setActivity("playing" | "menu")`.** Tell the shell whether the
+  rider is racing or navigating. Call `setActivity("playing")` when your gameplay loop is live, and
+  `setActivity("menu")` on every other screen — **including your title/menu screen at boot** (the
+  scaffold does this right after `ready()`). The shell eases trainer resistance (~35%) while not
+  `"playing"` so the rider keeps spinning between efforts, and restores full resistance the instant
+  play resumes. Your game sets **no** resistance value — only the state; the shell owns the policy (a
+  rider can disable it in Settings). **Default is `"menu"`** — a game that never reports stays eased
+  (safe, never stuck at full). You only toggle the two: the shell auto-resets you to the eased state
+  on pause / exit / crash, so there's nothing to clean up.
 - **`/replay/:runId` is REQUIRED if you save replays.** A replay is only watchable inside
   the game, so the platform deep-links a finished run to
   `https://rydr-platform.vercel.app/game/{slug}/replay/{runId}` — which arrives as your route
@@ -97,11 +115,20 @@ Hard rules — keep to these:
   steps it. Voice-over is a pure enhancement — with nothing generated yet, lines are silent typewriter
   text. Audio is **generated in your game's own editor**, scaffolded identically for every game:
   `voice-over-editor.html` + `src/voice-over-editor/host.ts`, reached at
-  `/game/<slug>/voice-over-editor` (admin only). Conversations are your game's own `shared` gamedata
+  `/game/<slug>/voice-over-editor` (admin only). **Write each line as one short caption (≤120 chars) —
+  split a long beat into sequential lines (`intro-1`, `intro-2`) rather than cramming or truncating —
+  and use NO dash punctuation (em dash —, en dash –, spaced hyphen " - "); use a comma/period or split
+  instead (in-word hyphens like "Prépare-toi" are fine). `defineConversation` warns in the console on
+  either.** Conversations are your game's own `shared` gamedata
   (collection `conversations`); the shell holds the TTS key and relays synthesis
   (`session.generateVoiceover`). Running the game as admin auto-registers your code lines into the
   editor. **Do not remove or rename the `voice-over-editor.html` entry / its vite build input + route
   rewrite** — that's the per-game editor and it's the same in every game.
+- **Sound is via `@rydr/game-sdk/sounds` (`createSoundBank`) — and the platform owns master volume.**
+  Play events by stable key through a `SoundBank`. The rider's master game-audio level is **shell-owned**
+  (set from the phone controller's volume keys / hardware) and the SDK scales every `SoundBank` by it
+  **automatically — you write no code for it**. Keep using `setMasterVolume`/`setBusVolume` for your own
+  mix; the platform master multiplies on top.
 - **The backend is a platform service — you never stand up your own.** A session-only game
   (read hardware, play, let the platform record the activity) needs no backend at all; don't
   reach for it too soon. When you *do*, the shell backs it **through the SDK session** — there
@@ -114,16 +141,19 @@ Hard rules — keep to these:
   See `@rydr/game-sdk`'s README (*Backend services*) for how each works; don't learn the API
   from this file.
 - **Leaderboard boards are declared in *this repo*.** Boards are declarative config the game
-  owns — declare them in `package.json`'s `rydr.boards`, then an admin adds them to the game's entry
-  in the platform admin UI (`/admin.html`) so a run's `saveRun({ scores: [{ boardId, value }] })`
-  works (an unknown `boardId` is rejected). Keep `rydr.boards` in the repo as the canonical record.
-  See `SETUP.md`.
+  owns — declare them in `package.json`'s `rydr.boards`; they become authoritative when the game's
+  registry row is upserted (step 8) so a run's `saveRun({ scores: [{ boardId, value }] })` ranks with
+  the right sort/aggregate (an unregistered board still records, just defaulted to `desc`/`best`).
+  Keep `rydr.boards` in the repo as the canonical record. See `SETUP.md`.
 - **Shipping is mandatory, not optional.** Creating a game isn't done until **all three** ship
   deliverables exist, in order: (1) **pushed to a GitHub repo** (`rydr-game-<slug>`, created via the
   `gh` CLI) → (2) **deployed** to its per-game, GitHub-connected Vercel project (`npm run deploy:link`
-  + `npm run deploy`) → (3) **registered** by an admin in the platform admin UI (`/admin.html`, no
-  secret — just signed in as an admin) — **Live** so it appears in the public library (or a hidden
-  draft, testable on the shell while signed in as a platform admin). A live deploy is **not** proof the repo exists — `vercel --prod` ships from
+  + `npm run deploy`) → (3) **registered** by **you** — upsert the game into Supabase `public.games`
+  via a `register_<slug>` migration + `supabase db push` in the `../rydr-platform` sibling (no admin
+  secret; the `supabase` CLI must be connected — the one thing to ask the user if it isn't). **Live**
+  so it appears in the public library (or a hidden draft via `isLive:false`, testable on the shell
+  while signed in as a platform admin; admin UI `/admin.html` is the fallback). A live deploy is
+  **not** proof the repo exists — `vercel --prod` ships from
   local without one; the GitHub repo is a required deliverable, not a side effect. Don't stop at local
   dev. See `SETUP.md` (steps 6–8 + its Definition of done) — the only reason to skip is the user
   explicitly saying they don't want to ship yet.
@@ -134,17 +164,19 @@ Don't learn the API from this file. The **`@rydr/game-sdk` package is the single
 truth** (it ships its own docs + types). After `npm install`, read:
 
 - **`node_modules/@rydr/game-sdk/dist/index.d.ts`** — the exact, current API: the full
-  `PlatformSession` (`hardware`, `identity`, `onButton`, `isDown`/`buttonsDown`,
-  `setMenu`/`setRoute`, trainer control, lifecycle, **backend services** —
+  `PlatformSession` (`hardware`, `identity`, `onButton`, `isDown`/`buttonsDown`, `axis`/`stick`,
+  `vibrate`, `setActivity`, `setRoute`, lifecycle, **backend services** —
   `startRun`/`saveRun`/`getRun`, `getLeaderboard`, the `get`/`save`/`list` data methods,
   `getUploadUrl`, `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, the backend types
   (`BoardDefinition`, `GameDoc`, `RoomHandle`), and the `Capability` union.
 
 **Controller buttons.** The canonical, source-agnostic vocabulary is `UP`/`DOWN`/`LEFT`/
-`RIGHT` plus the four raw face buttons `A`/`B`/`Y`/`Z` (the game assigns meaning — the
-platform never decides "confirm" vs "back"). The **house convention** is `A` = confirm /
-primary action, `Z` = back / cancel, with `B`/`Y` as contextual extras. Every controller
-(keyboard, phone, Zwift Play/Click) is normalised to these names. Buttons deliver **real
+`RIGHT`, the four raw face buttons `A`/`B`/`Y`/`Z`, and the two shoulder triggers `LT`/`RT`
+(the game assigns meaning — the platform never decides "confirm" vs "back"). The **house
+convention** is `A` = confirm / primary action, `Z` = back / cancel, with `B`/`Y` contextual
+and `LT`/`RT` as extra contextual inputs (no convention). Not every controller exposes `LT`/`RT`,
+so never gate a required flow behind a trigger alone. Every controller (keyboard, phone, Zwift
+Play/Click) is normalised to these names. Buttons deliver **real
 hold edges**: `onButton` fires `{name, edge, repeat}` with `edge: "down"` on press and `"up"`
 on release. **By default `onButton(cb)` gives you one `down` per physical press** — the shell
 swallows the re-emits some controllers (Zwift Play/Ride) send while a button is held, so menus
@@ -155,6 +187,33 @@ still-held re-emit). For continuous actions (hold-to-brake, steer), poll `sessio
 buttons can be held at once (e.g. `LEFT` + `A`) — each is an independent edge/held-state. The
 neutral `PRIMARY`/`SECONDARY` names were removed in SDK v3.0.0 — never use them (nor the
 pre-1.15 `"OK"`/`"CANCEL"`).
+
+**Analog / hall-effect input.** When a controller has hall sensors, its triggers and joysticks
+report a continuous position. Read `session.axis(name)` — `LT`/`RT` give `0..1`, sticks
+`LX`/`LY`/`RX`/`RY` give `-1..1` (right/up = +1). For a joystick prefer
+`session.stick("LSTICK" | "RSTICK", { deadzone })`, which applies the correct **radial** deadzone
+(per-axis deadzoning gives a square zone + fast diagonals; `deadzone` defaults to `0.1`) and returns
+`{ x, y, magnitude, angle }`. Pick by
+need: `stick()` for 2D movement/aim, `axis()` for a single trigger, `isDown`/`onButton` for ON/OFF.
+The digital and analog streams run in **parallel** (`isDown("LT")` and `axis("LT")` both work — the
+shell owns the on/off threshold), so use either or both. `axis()`/`stick()` are **always readable**:
+on a plain, non-hall controller the value is quantized to the endpoints (`0`/`1`, `-1`/`0`/`+1`) and
+rests at `0` until a sample arrives, so never branch on "does this controller have hall?" — and never
+*require* an analog axis for a flow that must work everywhere (fall back to the digital button). The
+keyboard emulates axes for local dev (trigger keys → `LT`/`RT`, arrow keys → left stick), so
+`axis()`/`stick()` work without a controller.
+
+**Menu navigation — don't hand-roll it.** For any DOM menu (start screen, level/song picker,
+pause, results), use the shared spatial-nav engine instead of writing your own focus/selection
+logic on top of `onButton`. Mark focusable elements `[data-nav]` and construct
+`createSpatialNav({ session, root, onBack })` from **`@rydr/game-sdk/nav`**: it moves a
+`[nav-focused]` ring to the nearest item in the pressed direction (grids, columns, lists — one
+engine, no per-layout code), activates on `A` via the element's own `click`, and backs out on
+`B`/`Z`. Session wiring, the focus ring, scroll-into-view, and editable-field focus are built in
+(each opt-out); style the ring with `[nav-focused] { … }` or accept the SDK default. It's the
+same engine the platform shell uses, so your menus match the rest of RYDR. Only fully in-canvas
+(WebGL) menus with no DOM elements skip it and read `onButton` directly. See
+`node_modules/@rydr/game-sdk/nav/README.md`.
 - **`node_modules/@rydr/game-sdk/README.md`** — usage + an API overview.
 
 If anything about the API is unclear, open those — never guess.

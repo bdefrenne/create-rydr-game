@@ -10,6 +10,14 @@ async function boot(): Promise<void> {
   const session = await connectToPlatform({ gameId: "__SLUG__" });
   session.ready();
 
+  // Trainer resistance: tell the shell when the rider is racing vs navigating your menus, so it can
+  // ease resistance (~35%) on menus and hold FULL resistance in play. You ALWAYS boot into your own
+  // menus, so declare that now — then flip to "playing" when your gameplay loop actually starts
+  // (e.g. `session.setActivity("playing")` on race start) and back to "menu" on results/pause. That's
+  // the whole contract: the shell auto-resets you to the eased state on pause/exit/crash, so you only
+  // ever toggle the two. (Menu is the default if you never call it — a game that forgets stays eased.)
+  session.setActivity("menu");
+
   // --- Demo: show the live power the shell bridges from the trainer/slider. ---
   // `hw.power` is raw; for a steady control signal read `hw.smoothedPower` (an SDK EMA) instead —
   // tune it with `rydr.powerSmoothing` in package.json (seconds), or omit for the 0.06s default.
@@ -24,15 +32,36 @@ async function boot(): Promise<void> {
   // menus and lift the cap during play; session.setHardwareRate(null) restores the native rate.
 
   // --- Controller input (canonical, source-agnostic) ---
-  // session.onButton((e) => {...})   → button edges: e.name A/B/Y/Z/UP/DOWN/LEFT/RIGHT, e.edge down/up
+  // session.onButton((e) => {...})   → button edges: e.name A/B/Y/Z/LT/RT/UP/DOWN/LEFT/RIGHT, e.edge down/up
   //   Default: ONE `down` per press (held-button re-emits swallowed) — right for menus.
   //   Hold-to-repeat: session.onButton((e) => {...}, { repeats: true }) then branch on e.repeat.
   // session.isDown("A")              → poll a held button in your game loop
-  //   House convention: A = confirm, Z = back; B/Y are contextual (game-assigned).
+  //   House convention: A = confirm, Z = back; B/Y contextual, LT/RT shoulder triggers (game-assigned).
+  // session.axis("RT")               → analog hall-effect value: LT/RT 0..1, sticks LX/LY/RX/RY -1..1 (right/up +1).
+  // session.stick("LSTICK", { deadzone: 0.1 }) → joystick as { x, y, magnitude, angle }, radially deadzoned (use for 2D move/aim).
+  //   Always readable: continuous on hall hardware, quantized to endpoints (0/1, -1/0/+1) on a plain controller;
+  //   the digital isDown("LT")/onButton edges keep firing in parallel (shell owns the threshold) — use either or both.
+  //   Keyboard emulates axes too (dev): trigger keys → LT/RT, arrow keys → left stick (LX/LY).
+  // session.vibrate("hit")           → rumble the controller. Named: "tick" | "hit" | "success" | "gameOver",
+  //   or custom: session.vibrate({ pattern: [100, 50, 100], intensity: 1 }) (on/off ms + 0..1 strength).
+  //   Needs the `buttons` capability; best-effort — a silent no-op with no controller / on Safari.
   // hw.controllerConnected           → true when a non-keyboard controller (Zwift Play/gamepad/phone) is
   //   connected (false on keyboard-only). Vary behaviour by input setup, e.g. an XP multiplier:
   //     const xpMul = session.hardware.current.controllerConnected ? 1.5 : 1.0;
   //   The platform never tells you WHICH device — just whether a real controller is present.
+  //
+  // --- Menu navigation (DOM menus) — use the shared engine, don't hand-roll focus ---
+  // For any HTML/CSS menu (start screen, level/song picker, pause, results), mark the focusable
+  // elements `[data-nav]` and drive them with the platform's spatial-nav engine — the SAME one the
+  // shell uses, so your menus feel identical to the rest of RYDR:
+  //   import { createSpatialNav } from "@rydr/game-sdk/nav";
+  //   const nav = createSpatialNav({ session, root: document.body, onBack: () => {/* pause/close */} });
+  // It moves a `[nav-focused]` ring to the NEAREST item in the pressed direction (works for grids,
+  // columns, and lists alike — no per-layout code), activates on A via the element's own `click`, and
+  // backs out on B/Z. Session wiring, the focus ring, scroll-into-view, and editable-field focus are
+  // all built in (each opt-out). Seed focus with nav.focusFirst(); style the ring with
+  // `[nav-focused] { … }` or pass `ring: false` for the SDK default. See @rydr/game-sdk/nav's README.
+  // (Only fully in-canvas/WebGL menus — no DOM elements — skip this and read session.onButton directly.)
   //
   // --- Lifecycle hooks you'll likely use (uncomment as needed) ---
   // session.identity.ftp / .weightKg / .displayName  → scoped, PII-free player data
@@ -43,9 +72,13 @@ async function boot(): Promise<void> {
   //     session.onIdentityChange((id) => { ftp = id.ftp; });    // re-tuned mid-ride → apply live
   //   Scale your difficulty off `ftp` (e.g. target watts = ftp * intensity). If you only read it
   //   once at init, the rider's mid-ride change won't take effect until the next launch.
-  // session.setMenu(false)              → hide the shell's in-game platform menu (hamburger) during immersive play
-  // session.setMenu(true)               → show it again on menus
+  // session.setActivity("playing" | "menu") → declare racing vs any non-racing screen so the shell
+  //   holds FULL resistance in play and EASES it (~35%) on menus (see the active call after ready()
+  //   above). Default is "menu"; the shell resets you to it on pause/exit/crash — you only toggle.
   // session.setRoute("play")            → project your internal route into the top URL
+  // NOTE: there's no "menu chrome" call — the shell's platform menu is summoned on demand (MENU
+  //   button / M key), and the trainerless power bar stays visible everywhere so a keyboard rider
+  //   can always pedal. Only an editor hides it, with session.setPowerBar(false).
   //
   // --- Replay route (REQUIRED if you save replays) ---
   // A replay is only watchable inside the game, so the platform deep-links finished runs to
@@ -60,12 +93,14 @@ async function boot(): Promise<void> {
   //
   // Backend services are live (runs + leaderboards via startRun/saveRun/getRun, replays/ghosts,
   // game-data store, asset upload, shared worlds via session.getWorld(), in-game editors via
-  // session.identity.isAdmin, realtime rooms) — see the SDK README for each. Leaderboard boards are
-  // declared in package.json's `rydr.boards` (see SETUP.md), then a run's
-  // `saveRun({ scores: [{ boardId: "<id>", value }] })` submits to it. For a parameterized board
-  // (per-track/song/difficulty via `key`), also pass `displayText` — a human label for exactly what
-  // this was (e.g. "Silverstone GP · 3 laps") — so the platform hub + WR/PB pings can show it:
-  // `saveRun({ scores: [{ boardId: "lap", value, key: trackId, displayText: trackName }] })`.
+  // session.identity.isAdmin, realtime rooms) — see the SDK README for each. Name each run at the
+  // start with `startRun(name, tags?)` — a title + short qualifiers (e.g.
+  // `startRun("Silverstone GP", ["3 laps"])`) — which the platform shows verbatim in the activity
+  // Breakdown, as the leaderboard board label, and in WR/PB pings (it never reads your breakdown blob).
+  // Leaderboard boards are declared in package.json's `rydr.boards` (see SETUP.md), then a run's
+  // `saveRun({ scores: [{ boardId: "<id>", value }] })` submits to it (one run's name+tags label every
+  // board it submits to). For a parameterized board, select the family member with `key`:
+  // `saveRun({ scores: [{ boardId: "lap", value, key: trackId }] })`.
   //
   // --- 3D world (optional) — render a shared platform environment in three.js ---
   // Import from `@rydr/game-sdk/three` (needs `three`). `loadWorld` fetches + decodes + caches the

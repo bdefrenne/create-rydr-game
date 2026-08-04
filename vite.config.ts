@@ -23,7 +23,9 @@ const sdkSrc = resolve(__dirname, "../rydr-game-sdk/src");
 const linkSdk = existsSync(sdkSrc);
 
 export default defineConfig({
-  server: { port: 3400 }, // change only if this clashes with another local dev server
+  // `NO_HMR=1` (the `dev:frozen` script) disables HMR so edits never reload the running tab —
+  // the built version stays usable while you code; manual refresh serves freshly transformed source.
+  server: { port: 3400, hmr: process.env.NO_HMR ? false : undefined }, // change only if this clashes with another local dev server
   resolve: {
     // `@rydr/game-sdk` → src/index.ts, `@rydr/game-sdk/three` → src/three/index.ts, etc.
     alias: linkSdk ? [{ find: /^@rydr\/game-sdk(\/.*)?$/, replacement: `${sdkSrc}$1/index.ts` }] : [],

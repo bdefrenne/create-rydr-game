@@ -5,26 +5,29 @@ You are an AI agent creating a new RYDR game from this template. **All 8 steps a
 and registered on the platform (steps 6–8, **Live** by default); do not stop at local dev or treat
 shipping as optional. Steps 6–8 need a few inputs from the user — **ask for them up front and
 proceed**, don't use them as a reason to skip: the game idea, a slug/title, a free port if `3400`
-is taken, and the GitHub `<owner>` for the repo (step 6). Step 8 (registration) is done by the user
-in the platform admin UI while signed in as an admin — no secret, no CLI. Step 6 uses the **`gh`
-CLI** — if it's not installed, have the user install + `gh auth login` up front (don't hand-create
-the repo). The only legitimate reason to stop before step 8 is the user **explicitly** saying they
-don't want to ship yet.
+is taken, and the GitHub `<owner>` for the repo (step 6). Step 8 (registration) you do **yourself**
+via a Supabase migration + `supabase db push` (see step 8) — the only thing you may need to ask the
+user is to *connect* the `supabase` CLI (`supabase login`/`link`) if it isn't already. Step 6 uses the
+**`gh` CLI** — if it's not installed, have the user install + `gh auth login` up front (don't
+hand-create the repo). The only legitimate reason to stop before step 8 is the user **explicitly**
+saying they don't want to ship yet.
 **Delete this file from the new game when done.**
 
 ## 0. Prerequisites — install these before you start
 
 These are a **gate**, not a step you reach later. Set them up *before* step 1:
 
-- **`gh` (GitHub CLI)** and **`vercel` (Vercel CLI)** must both be **installed and
-  authenticated** — they are required, not optional. If either is missing, install it now
-  (`brew install gh` / `npm i -g vercel` on macOS, or https://cli.github.com /
-  https://vercel.com/cli) and authenticate (`gh auth login`, `vercel login`). A missing CLI is
-  **never** a reason to skip a step or to do something by hand instead.
+- **`gh` (GitHub CLI)**, **`vercel` (Vercel CLI)**, and **`supabase` (Supabase CLI)** must all be
+  **installed and authenticated** — they are required, not optional. If any is missing, install it now
+  (`brew install gh supabase/tap/supabase` / `npm i -g vercel` on macOS, or https://cli.github.com /
+  https://vercel.com/cli / https://supabase.com/docs/guides/cli) and authenticate (`gh auth login`,
+  `vercel login`, `supabase login`). The `supabase` CLI registers the game in step 8 (its RYDR project
+  must be linked — normally already done in the `../rydr-platform` sibling). A missing CLI is **never**
+  a reason to skip a step or to do something by hand instead.
 - **Gather these inputs from the user up front** (don't use a missing one as a reason to skip):
   the game idea, a slug/title, a free port if `3400` is taken, and the GitHub `<owner>` for the repo
-  (step 6). Registration (step 8) is done by the user in the platform admin UI (`/admin.html`) while
-  signed in as an admin — no secret to gather.
+  (step 6). Registration (step 8) you do yourself via a `supabase db push` migration — nothing to
+  gather except, if the `supabase` CLI isn't connected, asking the user to `supabase login`/`link`.
 
 ## 1. Get into a fresh game folder
 
@@ -44,8 +47,9 @@ npm install              # installs deps AND fetches @rydr/game-sdk so you can r
 **If you don't already know the `@rydr/game-sdk` API, that's expected — load it and read it.**
 After `npm install` (step 1) the package is on disk; read it instead of guessing:
 - `node_modules/@rydr/game-sdk/dist/index.d.ts` — the exact, authoritative API:
-  `connectToPlatform`, `PlatformSession` (`hardware`, `identity`, `onButton`,
-  `setMenu`/`setRoute`, trainer control, lifecycle, and the **backend services** —
+  `connectToPlatform`, `PlatformSession` (`hardware`, `identity`, `onButton`, `axis`/`stick`,
+  `vibrate` (controller rumble), `setActivity`, `setRoute`, lifecycle,
+  and the **backend services** —
   `startRun`/`saveRun`/`getRun` (runs + their scores), `getLeaderboard`, `saveReplay`/`getReplays`,
   the data-store methods, `getUploadUrl`, `joinRoom`), `HardwareSnapshot`, `ScopedIdentity`, `Capability`.
 - `node_modules/@rydr/game-sdk/README.md` — usage + an API overview, incl. *Backend services*.
@@ -99,17 +103,23 @@ Implement it in `src/`: read live values from `session.hardware` (power/cadence/
 and `session.identity` (`ftp` is always a usable number — no fallback). For a steady control
 signal, prefer **`session.hardware.current.smoothedPower`** (an SDK EMA — don't hand-roll a
 filter) over raw `power`; tune it per game with `rydr.powerSmoothing` (seconds) in
-`package.json`, or omit for the 0.06s default. Drive resistance
+`package.json`, or omit for the 0.06s default.
 Read controller buttons with `session.onButton`/`session.isDown` (canonical, source-agnostic
-`A`/`B`/`Y`/`Z`/`UP`/`DOWN`/`LEFT`/`RIGHT`; house convention A=confirm, Z=back);
-`session.hardware.current.controllerConnected`
+`A`/`B`/`Y`/`Z`/`UP`/`DOWN`/`LEFT`/`RIGHT`/`LT`/`RT`; house convention A=confirm, Z=back). For
+hall-effect analog, `session.axis("RT")` gives `0..1` (sticks `LX`/`LY`/`RX`/`RY` give `-1..1`) and
+`session.stick("LSTICK", { deadzone })` gives a radially-deadzoned `{ x, y, magnitude, angle }` (deadzone defaults to `0.1`) — always readable
+(quantized to endpoints on a plain controller), with the digital `isDown`/`onButton` still firing in
+parallel, so use either or both. `session.hardware.current.controllerConnected`
 tells you whether a non-keyboard controller (Zwift Play/gamepad/phone) is connected, so you can
-vary behaviour by input setup (e.g. an XP multiplier) — it never reveals which device. Drive resistance
-with `setSimulation`/`setTargetPower` if relevant; `setMenu(false)` for immersive play;
-`setPowerBar(false)` to hide the shell's trainerless power bar where it doesn't belong (e.g. an
-editor or menu), `setPowerBar(true)` during play (both default to visible);
-`setMenu(false)`/`setMenu(true)` to hide/show the shell's in-game platform menu — the hamburger
-that opens Exit + hardware (also defaults to visible); `setRoute(path)` for shareable URLs. **Do nothing for activity/FIT recording** — the
+vary behaviour by input setup (e.g. an XP multiplier) — it never reveals which device.
+**Do not try to drive resistance** — `setSimulation`/`setTargetPower` are no-ops on the shell
+(trainer feel is rider-owned, tuned with the shift paddles and persisted per trainer). What you MUST
+call is `setActivity("playing"|"menu")`: the shell eases resistance ~35% on any non-playing screen so
+riders can spin while navigating, and **a game that never reports stays eased through all gameplay**.
+Use `setPowerBar(false)` to hide the shell's trainerless power bar where it doesn't belong (e.g. an
+editor or menu), `setPowerBar(true)` during play (both default to visible); the shell's in-game
+platform menu (Exit + hardware) is summoned by the MENU button / M key, never drawn as a persistent
+button; `setRoute(path)` for shareable URLs. **Do nothing for activity/FIT recording** — the
 platform records every session automatically from its own hardware stream; there is no
 recording API to call.
 
@@ -147,7 +157,8 @@ README (*Backend services*) for each API.
 ## 5. Run it locally
 
 ```bash
-npm run dev   # your game + the RYDR shell at http://localhost:3100 (power slider / trainer)
+npm run dev          # your game + the RYDR shell at http://localhost:3100 (power slider / trainer)
+npm run dev:frozen   # same, but HMR off — edits never reload the tab; refresh manually to pull changes
 ```
 
 ## 6. Create the GitHub repo + push
@@ -187,31 +198,71 @@ npm run deploy         # `vercel --prod` → first production deploy; prints the
 Note the printed **production URL** for the next step. After this, ordinary `git push` to `main`
 redeploys automatically — you only re-run `npm run deploy` for an out-of-band manual deploy.
 
-## 8. Register in the library (LIVE by default)
+## 8. Register in the library (LIVE by default) — **do it yourself, don't punt to the user**
 
-Registration is done by a **platform admin** in the RYDR admin UI at **`/admin.html`** on the
-platform — there is no CLI and no secret. Admin access is simply being **signed in to the platform
-with an admin-role account** (Supabase `app_metadata.role === 'admin'`); the AI never handles any
-credential. Since the AI can't sign in, **the register step is performed by the user** — walk them
-through it (or hand them the values to paste).
+Registration is an **upsert into the platform's Supabase `public.games` table**, gated by RLS
+(admin role). **There is no admin secret and no `register` script** (the old `ADMIN_SECRET` model is
+gone). The AI **can and should register the game itself** via a Supabase migration — the only thing
+to ask the user for is *connecting* (authenticating the CLI), and only if it isn't already.
 
-1. The user opens **`/admin.html`** on the platform while signed in as an admin.
-2. Click **Add**, then fill the form from this game's `package.json` `rydr` block:
-   **Slug** (immutable id), **Title**, **Icon**, **Accent** (hex), **Entry URL**
-   (`https://<your-game>.vercel.app`), plus each **leaderboard board** from `rydr.boards`.
-3. Leave **Live** checked to publish immediately, or uncheck it to register a **draft**.
-4. **Save.**
+### Prerequisite (the one thing you may need to ask the user)
+The **`supabase` CLI** must be installed + **authenticated** (`supabase login`) and the **RYDR
+platform project linked**. In the normal workspace the platform is the sibling repo `../rydr-platform`
+with the project already linked (`supabase/.temp/` present). Verify with `supabase projects list`
+(the RYDR project shows `"linked": true`). If it's not authenticated/linked, that's the *only* step to
+hand to the user: “run `supabase login` (and `supabase link` in `../rydr-platform`)”. Nothing else.
 
-A **draft** doesn't show in the public library but is previewable on the shell when signed in as a
-platform admin. Flip **Live** on later (same form) to publish.
+### Register via a migration (the self-service path)
+Work in the **platform repo** (`../rydr-platform`), NOT the game repo — the migration writes the
+registry row:
 
-- **Registering is a separate step from deploying.** A Vercel deploy ships your *code*; it does
-  **not** touch the registry. Adding a board (or changing title/icon) only reaches the platform when
-  the admin **edits the game's entry in `/admin.html`** — otherwise a newly-declared board never
-  appears and a `saveRun` score to it is rejected.
-- **The registry is the source of truth at runtime.** `session.boards` comes from the registry
-  entry (not `package.json`), so keep `rydr.boards` in the repo as the canonical record and mirror
-  any board you add in `/admin.html` back into it.
+1. Add `supabase/migrations/<UTC-timestamp>_register_<slug>.sql`, mirroring the idempotent upsert in
+   `0005_seed_games.sql`. The row is `(slug, title, status, boards jsonb, manifest jsonb)` and
+   `manifest` is the full `GameManifest` built from this game's `package.json` `rydr` block. Board
+   objects use the key **`id`** (not `boardId`). `status` = `live` (or `draft` if the user asked):
+   ```sql
+   insert into public.games (slug, title, status, boards, manifest)
+   select g->>'slug', coalesce(g->>'title',''),
+     case when (g->>'isLive')::boolean is false then 'draft' else 'live' end,
+     coalesce(g->'boards','[]'::jsonb), g
+   from jsonb_array_elements($json$
+   [ { "slug":"<slug>", "title":"<Title>", "icon":"<icon>", "accent":"<#hex>",
+       "url":"https://rydr-game-<slug>.vercel.app",
+       "capabilities":["power","cadence","heartRate","speed","buttons","identity"],
+       "boards":[ /* each rydr.boards entry: {id,label,valueType,sort,aggregate} */ ],
+       "isLive":true } ]
+   /* Optional artwork: "squareImage" (1:1) and "coverImage" (3:1), each an object
+      { "original", "large", "small" } of WebP URLs. Easiest to add by uploading in /admin.html
+      (Edit game → Upload square/cover): it opens a cropper, encodes WebP at large/small/original,
+      stores them on R2, and writes the URL set into the manifest for you. */
+   $json$::jsonb) g
+   on conflict (slug) do update set
+     title=excluded.title, status=excluded.status, boards=excluded.boards,
+     manifest=excluded.manifest, updated_at=now();
+   ```
+2. **`supabase db push --dry-run`** — confirm it lists **ONLY your new migration**. If any other
+   migration is unexpectedly pending, **STOP** (don't push someone else's WIP) and resolve first.
+3. **`supabase db push`** — applies it to the linked remote. The game is now Live.
+4. **Verify** with a public read (live rows are anon-readable):
+   `curl "$VITE_SUPABASE_URL/rest/v1/games?slug=eq.<slug>&select=slug,status,boards" -H "apikey: $KEY" -H "Authorization: Bearer $KEY"`
+   (URL + publishable key are in `../rydr-platform/.env.local`) → expect `"status":"live"`.
+5. **Commit the migration** in `../rydr-platform` so repo history matches the remote DB. Stage only
+   your file (the platform tree may hold unrelated WIP) and commit.
+
+For a **draft** instead of Live, set `"isLive": false` (→ `status: draft`): hidden from the public
+library, previewable on the shell by admins. Flip live later with another upsert migration.
+
+**Fallback (no CLI / no platform access):** the admin UI at **`/admin.html`** (signed in as an
+admin) → **Add**, fill Slug / Title / Icon / Accent / Entry URL + each board, Live, Save.
+Optional **square/cover images** upload here too (Upload square/cover → crop → stored on R2 as WebP).
+
+- **Registering is separate from deploying.** A Vercel deploy ships *code*; it does not touch the
+  registry. A newly-declared board only becomes authoritative once its row is upserted (unregistered
+  boards still record — `submit_score` defaults sort/aggregate to `desc`/`best` — they're just not
+  configured/visible until registered).
+- **The registry is the runtime source of truth.** `session.boards` comes from the registry row (not
+  `package.json`), so keep `rydr.boards` in the repo as the canonical record and mirror it into the
+  `manifest`/`boards` you upsert.
 
 ## ✅ Definition of done
 
@@ -224,6 +275,8 @@ GitHub-repo box means the game is **not done**, no matter what's live.
 - [ ] **Vercel project linked *and* git-connected** — `.vercel/` exists and `vercel git connect` was
       run (so pushes to `main` auto-deploy).
 - [ ] **Production deploy succeeded** — `npm run deploy` printed a production URL.
-- [ ] **Registered in the library** — the user added the game in `/admin.html` (Live by default, or
-      draft if they asked), with the Entry URL pointing at the production deploy.
+- [ ] **Registered in the library** — you upserted the game into Supabase `public.games` via a
+      `register_<slug>` migration + `supabase db push` (Live by default, or draft if asked), verified
+      with the public read, and committed the migration in `../rydr-platform`. Entry URL points at the
+      production deploy. (Fallback: admin added it in `/admin.html`.)
 - [ ] **`SETUP.md` deleted** from the new game folder.

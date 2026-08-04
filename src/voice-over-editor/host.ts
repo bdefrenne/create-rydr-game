@@ -38,8 +38,7 @@ async function boot(): Promise<void> {
     showGate("Admin mode required. Sign in to the platform as an admin, then reopen this editor.");
     return;
   }
-  session.setPowerBar(false);
-  session.setMenu(false);
+  session.setPowerBar(false); // editor — nothing to pedal
   mountVoiceoverEditor(document.getElementById("root")!, { session, definitions: listDefinedConversations() });
 }
 
