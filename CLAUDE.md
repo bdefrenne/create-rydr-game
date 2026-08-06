@@ -188,19 +188,20 @@ buttons can be held at once (e.g. `LEFT` + `A`) — each is an independent edge/
 neutral `PRIMARY`/`SECONDARY` names were removed in SDK v3.0.0 — never use them (nor the
 pre-1.15 `"OK"`/`"CANCEL"`).
 
-**Analog / hall-effect input.** When a controller has hall sensors, its triggers and joysticks
-report a continuous position. Read `session.axis(name)` — `LT`/`RT` give `0..1`, sticks
-`LX`/`LY`/`RX`/`RY` give `-1..1` (right/up = +1). For a joystick prefer
+**Analog / hall-effect input.** When a controller has hall joysticks, each stick reports a
+continuous position. Read `session.axis(name)` — the stick axes `LX`/`LY`/`RX`/`RY` give `-1..1`
+(right/up = +1) and are the **only** axes: the shoulder triggers `LT`/`RT` are plain clicks with no
+analog travel, read via `isDown`/`onButton` only. For a joystick prefer
 `session.stick("LSTICK" | "RSTICK", { deadzone })`, which applies the correct **radial** deadzone
 (per-axis deadzoning gives a square zone + fast diagonals; `deadzone` defaults to `0.1`) and returns
 `{ x, y, magnitude, angle }`. Pick by
-need: `stick()` for 2D movement/aim, `axis()` for a single trigger, `isDown`/`onButton` for ON/OFF.
-The digital and analog streams run in **parallel** (`isDown("LT")` and `axis("LT")` both work — the
-shell owns the on/off threshold), so use either or both. `axis()`/`stick()` are **always readable**:
-on a plain, non-hall controller the value is quantized to the endpoints (`0`/`1`, `-1`/`0`/`+1`) and
+need: `stick()` for 2D movement/aim, `isDown`/`onButton` for ON/OFF.
+The digital and analog streams run in **parallel** (`isDown("RLEFT")` and `stick("RSTICK")` both
+work), so use either or both. `axis()`/`stick()` are **always readable**:
+on a plain, non-hall controller the value is quantized to the endpoints (`-1`/`0`/`+1`) and
 rests at `0` until a sample arrives, so never branch on "does this controller have hall?" — and never
 *require* an analog axis for a flow that must work everywhere (fall back to the digital button). The
-keyboard emulates axes for local dev (trigger keys → `LT`/`RT`, arrow keys → left stick), so
+keyboard emulates axes for local dev (arrow keys → left stick, `i`/`j`/`k`/`l` → right stick), so
 `axis()`/`stick()` work without a controller.
 
 **Menu navigation — don't hand-roll it.** For any DOM menu (start screen, level/song picker,

@@ -106,7 +106,8 @@ filter) over raw `power`; tune it per game with `rydr.powerSmoothing` (seconds) 
 `package.json`, or omit for the 0.06s default.
 Read controller buttons with `session.onButton`/`session.isDown` (canonical, source-agnostic
 `A`/`B`/`Y`/`Z`/`UP`/`DOWN`/`LEFT`/`RIGHT`/`LT`/`RT`; house convention A=confirm, Z=back). For
-hall-effect analog, `session.axis("RT")` gives `0..1` (sticks `LX`/`LY`/`RX`/`RY` give `-1..1`) and
+hall-effect analog, the stick axes `session.axis("LX"|"LY"|"RX"|"RY")` give `-1..1` (the only axes —
+`LT`/`RT` are plain clicks, digital only) and
 `session.stick("LSTICK", { deadzone })` gives a radially-deadzoned `{ x, y, magnitude, angle }` (deadzone defaults to `0.1`) — always readable
 (quantized to endpoints on a plain controller), with the digital `isDown`/`onButton` still firing in
 parallel, so use either or both. `session.hardware.current.controllerConnected`

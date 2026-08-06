@@ -37,11 +37,12 @@ async function boot(): Promise<void> {
   //   Hold-to-repeat: session.onButton((e) => {...}, { repeats: true }) then branch on e.repeat.
   // session.isDown("A")              → poll a held button in your game loop
   //   House convention: A = confirm, Z = back; B/Y contextual, LT/RT shoulder triggers (game-assigned).
-  // session.axis("RT")               → analog hall-effect value: LT/RT 0..1, sticks LX/LY/RX/RY -1..1 (right/up +1).
+  // session.axis("LX")               → analog hall-effect stick value: LX/LY/RX/RY -1..1 (right/up +1).
+  //   Sticks are the ONLY axes — LT/RT are plain clicks (no analog travel), read them with isDown/onButton.
   // session.stick("LSTICK", { deadzone: 0.1 }) → joystick as { x, y, magnitude, angle }, radially deadzoned (use for 2D move/aim).
-  //   Always readable: continuous on hall hardware, quantized to endpoints (0/1, -1/0/+1) on a plain controller;
-  //   the digital isDown("LT")/onButton edges keep firing in parallel (shell owns the threshold) — use either or both.
-  //   Keyboard emulates axes too (dev): trigger keys → LT/RT, arrow keys → left stick (LX/LY).
+  //   Always readable: continuous on hall hardware, quantized to endpoints (-1/0/+1) on a plain controller;
+  //   the digital direction edges keep firing in parallel (shell owns the threshold) — use either or both.
+  //   Keyboard emulates axes too (dev): arrow keys → left stick (LX/LY), i/j/k/l → right stick (RX/RY).
   // session.vibrate("hit")           → rumble the controller. Named: "tick" | "hit" | "success" | "gameOver",
   //   or custom: session.vibrate({ pattern: [100, 50, 100], intensity: 1 }) (on/off ms + 0..1 strength).
   //   Needs the `buttons` capability; best-effort — a silent no-op with no controller / on Safari.
