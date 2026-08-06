@@ -104,8 +104,11 @@ and `session.identity` (`ftp` is always a usable number — no fallback). For a 
 signal, prefer **`session.hardware.current.smoothedPower`** (an SDK EMA — don't hand-roll a
 filter) over raw `power`; tune it per game with `rydr.powerSmoothing` (seconds) in
 `package.json`, or omit for the 0.06s default.
-Read controller buttons with `session.onButton`/`session.isDown` (canonical, source-agnostic
-`A`/`B`/`Y`/`Z`/`UP`/`DOWN`/`LEFT`/`RIGHT`/`LT`/`RT`; house convention A=confirm, Z=back). For
+Read controller buttons with `session.onButton`/`session.isDown` (canonical, source-agnostic:
+the positional face diamond `DIAMOND_UP`/`DIAMOND_DOWN`/`DIAMOND_LEFT`/`DIAMOND_RIGHT`,
+`UP`/`DOWN`/`LEFT`/`RIGHT`, right-stick `RUP`/`RDOWN`/`RLEFT`/`RRIGHT`, trigger clicks `LT`/`RT`,
+stick presses `LSTICK_PRESS`/`RSTICK_PRESS`; house convention DIAMOND_DOWN=confirm,
+DIAMOND_RIGHT=back — print labels via `session.buttonLabel(name)`, never a hardcoded letter). For
 hall-effect analog, the stick axes `session.axis("LX"|"LY"|"RX"|"RY")` give `-1..1` (the only axes —
 `LT`/`RT` are plain clicks, digital only) and
 `session.stick("LSTICK", { deadzone })` gives a radially-deadzoned `{ x, y, magnitude, angle }` (deadzone defaults to `0.1`) — always readable

@@ -32,11 +32,14 @@ async function boot(): Promise<void> {
   // menus and lift the cap during play; session.setHardwareRate(null) restores the native rate.
 
   // --- Controller input (canonical, source-agnostic) ---
-  // session.onButton((e) => {...})   → button edges: e.name A/B/Y/Z/LT/RT/UP/DOWN/LEFT/RIGHT, e.edge down/up
+  // session.onButton((e) => {...})   → button edges, e.edge down/up. e.name is positional:
+  //   DIAMOND_UP/DIAMOND_DOWN/DIAMOND_LEFT/DIAMOND_RIGHT (face diamond), UP/DOWN/LEFT/RIGHT (d-pad + left
+  //   stick), RUP/RDOWN/RLEFT/RRIGHT (right stick), LT/RT (trigger clicks), LSTICK_PRESS/RSTICK_PRESS.
   //   Default: ONE `down` per press (held-button re-emits swallowed) — right for menus.
   //   Hold-to-repeat: session.onButton((e) => {...}, { repeats: true }) then branch on e.repeat.
-  // session.isDown("A")              → poll a held button in your game loop
-  //   House convention: A = confirm, Z = back; B/Y contextual, LT/RT shoulder triggers (game-assigned).
+  // session.isDown("DIAMOND_DOWN")   → poll a held button in your game loop
+  //   House convention: DIAMOND_DOWN = confirm, DIAMOND_RIGHT = back; DIAMOND_UP/DIAMOND_LEFT and LT/RT
+  //   contextual (game-assigned). On-screen text: session.buttonLabel(name), never a hardcoded letter.
   // session.axis("LX")               → analog hall-effect stick value: LX/LY/RX/RY -1..1 (right/up +1).
   //   Sticks are the ONLY axes — LT/RT are plain clicks (no analog travel), read them with isDown/onButton.
   // session.stick("LSTICK", { deadzone: 0.1 }) → joystick as { x, y, magnitude, angle }, radially deadzoned (use for 2D move/aim).
@@ -144,7 +147,7 @@ async function boot(): Promise<void> {
   // play them here. `speaker` is a casting key (e.g. "narrator") you assign a voice to in the editor.
   //   import { INTRO } from "./conversations";
   //   const convo = await INTRO.open(document.body, session); // pops the card + plays each line's MP3
-  //   session.onButton((e) => { if (e.name === "A" && e.edge === "down") convo.advance(); });
+  //   session.onButton((e) => { if (e.name === "DIAMOND_DOWN" && e.edge === "down") convo.advance(); });
   // Voice-over is a pure enhancement: with no audio yet, lines show as silent typewriter text.
   // To generate: open your game's editor (scaffolded: voice-over-editor.html + src/voice-over-editor/)
   // at /game/__SLUG__/voice-over-editor (admin). It imports src/conversations.ts, so it lists your

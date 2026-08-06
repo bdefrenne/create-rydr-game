@@ -23,4 +23,4 @@ export const INTRO = defineConversation("intro", [
 // In your game (src/main.ts), play it:
 //   import { INTRO } from "./conversations";
 //   const convo = await INTRO.open(document.body, session);
-//   session.onButton((e) => { if (e.name === "A" && e.edge === "down") convo.advance(); });
+//   session.onButton((e) => { if (e.name === "DIAMOND_DOWN" && e.edge === "down") convo.advance(); });

@@ -171,22 +171,31 @@ truth** (it ships its own docs + types). After `npm install`, read:
   (`BoardDefinition`, `GameDoc`, `RoomHandle`), and the `Capability` union.
 
 **Controller buttons.** The canonical, source-agnostic vocabulary is `UP`/`DOWN`/`LEFT`/
-`RIGHT`, the four raw face buttons `A`/`B`/`Y`/`Z`, and the two shoulder triggers `LT`/`RT`
-(the game assigns meaning — the platform never decides "confirm" vs "back"). The **house
-convention** is `A` = confirm / primary action, `Z` = back / cancel, with `B`/`Y` contextual
-and `LT`/`RT` as extra contextual inputs (no convention). Not every controller exposes `LT`/`RT`,
-so never gate a required flow behind a trigger alone. Every controller (keyboard, phone, Zwift
-Play/Click) is normalised to these names. Buttons deliver **real
+`RIGHT` (D-pad **and** left stick), the right-stick directions `RUP`/`RDOWN`/`RLEFT`/`RRIGHT`,
+the four **positional** face buttons `DIAMOND_UP`/`DIAMOND_DOWN`/`DIAMOND_LEFT`/`DIAMOND_RIGHT`
+(named by position on the pad, never by letter — the bottom button is printed `A` on an Xbox
+pad, `✕` on a DualSense and `B` on a Switch Pro, so a letter would lie to most riders), the two
+shoulder triggers `LT`/`RT` (plain clicks, no analog travel), and the stick presses
+`LSTICK_PRESS`/`RSTICK_PRESS` (the game assigns meaning — the platform never decides "confirm"
+vs "back"). The **house convention** is `DIAMOND_DOWN` = confirm / primary action and
+`DIAMOND_RIGHT` = back / cancel (matching Xbox, PlayStation and Nintendo), with
+`DIAMOND_UP`/`DIAMOND_LEFT` contextual and `LT`/`RT` as extra contextual inputs (no
+convention). Not every controller exposes `LT`/`RT`, the `R*` directions, or a stick press, so
+never gate a required flow behind them alone. **Never hardcode a button letter in on-screen
+text** — print `session.buttonLabel("DIAMOND_DOWN")` (resolves to `"A"`/`"✕"`/`"B"` for the pad
+the rider actually holds) or use a keycap from `@rydr/game-sdk/ui`. Every controller (keyboard,
+phone, Zwift Play/Click) is normalised to these names. Buttons deliver **real
 hold edges**: `onButton` fires `{name, edge, repeat}` with `edge: "down"` on press and `"up"`
 on release. **By default `onButton(cb)` gives you one `down` per physical press** — the shell
 swallows the re-emits some controllers (Zwift Play/Ride) send while a button is held, so menus
 and discrete actions never double-fire. For hold-to-repeat / charge, opt in with
 `onButton(cb, { repeats: true })` and branch on `e.repeat` (`false` = fresh press, `true` =
-still-held re-emit). For continuous actions (hold-to-brake, steer), poll `session.isDown("A")`
-/ `session.buttonsDown()` in your game loop instead of tracking edges yourself. Multiple
-buttons can be held at once (e.g. `LEFT` + `A`) — each is an independent edge/held-state. The
-neutral `PRIMARY`/`SECONDARY` names were removed in SDK v3.0.0 — never use them (nor the
-pre-1.15 `"OK"`/`"CANCEL"`).
+still-held re-emit). For continuous actions (hold-to-brake, steer), poll
+`session.isDown("DIAMOND_DOWN")` / `session.buttonsDown()` in your game loop instead of
+tracking edges yourself. Multiple buttons can be held at once (e.g. `LEFT` + `DIAMOND_DOWN`) —
+each is an independent edge/held-state. The letter names `A`/`B`/`Y`/`Z` were removed in SDK
+v5.0 (protocol 26, positional rename) and the neutral `PRIMARY`/`SECONDARY` in v3.0.0 — never
+use them (nor the pre-1.15 `"OK"`/`"CANCEL"`).
 
 **Analog / hall-effect input.** When a controller has hall joysticks, each stick reports a
 continuous position. Read `session.axis(name)` — the stick axes `LX`/`LY`/`RX`/`RY` give `-1..1`
