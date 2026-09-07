@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "concurrently -k -n game,shell \"vite\" \"npx -y --package github:bdefrenne/rydr-platform rydr-dev-shell --slug __SLUG__ --title \\\"__TITLE__\\\" --game http://localhost:3400\"",
     "dev:frozen": "NO_HMR=1 concurrently -k -n game,shell \"vite\" \"npx -y --package github:bdefrenne/rydr-platform rydr-dev-shell --slug __SLUG__ --title \\\"__TITLE__\\\" --game http://localhost:3400\"",
+    "dev:noauth": "concurrently -k -n game,shell \"vite\" \"npx -y --package github:bdefrenne/rydr-platform rydr-dev-shell --slug __SLUG__ --title \\\"__TITLE__\\\" --game http://localhost:3400 --no-auth\"",
     "update": "npm install $(node -p \"[...Object.keys(require('./package.json').dependencies||{}),...Object.keys(require('./package.json').devDependencies||{})].filter(d=>d.startsWith('@rydr/')).map(d=>d+'@latest').join(' ')\")",
     "build": "tsc && vite build",
     "typecheck": "tsc -p tsconfig.json",

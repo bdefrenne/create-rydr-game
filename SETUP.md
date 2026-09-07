@@ -118,9 +118,15 @@ hall-effect analog, the stick axes `session.axis("LX"|"LY"|"RX"|"RY")` give `-1.
 parallel, so use either or both. `session.hardware.current.controllerConnected`
 tells you whether a non-keyboard controller (Zwift Play/gamepad/phone) is connected, so you can
 vary behaviour by input setup (e.g. an XP multiplier) — it never reveals which device.
-**Do not try to drive resistance** — `setSimulation`/`setTargetPower` are no-ops on the shell
-(trainer feel is rider-owned, tuned with the shift paddles and persisted per trainer). What you MUST
-call is `setActivity("playing"|"menu")`: the shell eases resistance ~35% on any non-playing screen so
+**Do not try to drive resistance** — `setSimulation` is a no-op on the shell, and trainer *feel* is
+rider-owned (tuned with the shift paddles, persisted per trainer). The one exception is **ERG**, and
+only if a prescribed target is the whole point of your game (a structured workout): call
+`setErgMode(true)` to take the trainer's control point, then push watts with `setTargetPower(w)` —
+gate it on `session.hardware.current.ergSupported` and always show the rider a target they can hold
+themselves, since a dumb trainer, the power slider and the keyboard have no ERG. The shell releases
+the control point on exit/crash, so there's nothing to clean up. **If you're not building a workout
+app, this isn't for you** — see the "power is the controller" rule: your game creates demand, it
+doesn't prescribe watts. What you MUST call is `setActivity("playing"|"menu")`: the shell eases resistance ~35% on any non-playing screen so
 riders can spin while navigating, and **a game that never reports stays eased through all gameplay**.
 Use `setPowerBar(false)` to hide the shell's trainerless power bar where it doesn't belong (e.g. an
 editor or menu), `setPowerBar(true)` during play (both default to visible); the shell's in-game
@@ -165,7 +171,17 @@ README (*Backend services*) for each API.
 ```bash
 npm run dev          # your game + the RYDR shell at http://localhost:3100 (power slider / trainer)
 npm run dev:frozen   # same, but HMR off — edits never reload the tab; refresh manually to pull changes
+npm run dev:noauth   # same, but the shell runs with auth OFF and boots STRAIGHT into your game
 ```
+
+`dev:noauth` (`rydr-dev-shell --no-auth`) is what to use when you can't sign in, or when something
+other than a human has to open the game — a screenshot, a smoke test, CI. The shell is invite-only,
+so plain `npm run dev` shows "RYDR is in private BETA" until you sign in; with the flag there is no
+sign-in, no ride-setup wizard and no first-launch lesson, and `/play/game/<slug>` opens the game
+itself as a local stand-in rider (a corner badge says `AUTH OFF · DEV SHELL`). It is still the REAL
+shell — the real `createPlatformHost`, so the handshake, hardware, identity and buttons are all
+genuinely exercised. What it does NOT give you is a backend: with no session there are no runs, no
+leaderboards and no game-data, so test anything that saves with the plain shell, signed in.
 
 ## 6. Create the GitHub repo + push
 

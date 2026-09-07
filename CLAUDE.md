@@ -98,6 +98,18 @@ Hard rules — keep to these:
   rider can disable it in Settings). **Default is `"menu"`** — a game that never reports stays eased
   (safe, never stuck at full). You only toggle the two: the shell auto-resets you to the eased state
   on pause / exit / crash, so there's nothing to clean up.
+- **ERG is the one exception, and almost certainly not yours.** Resistance is rider-owned and
+  `setSimulation` is a no-op, but a game whose entire point is a *prescribed* target — a structured
+  workout — can take the trainer's control point: `session.setErgMode(true)`, then
+  `session.setTargetPower(watts)` as the target moves (cheap to call every frame; an unchanged
+  target writes nothing). Gate it on `session.hardware.current.ergSupported` and **always draw the
+  target too** — a dumb trainer, the trainerless power slider and the keyboard have no ERG, and that
+  rider must still be able to ride your workout by holding the number themselves. `setTargetPower`
+  alone does nothing without `setErgMode(true)` first (grabbing the trainer stays explicit), and the
+  shell releases the control point on exit/crash — so there's nothing to clean up, but *do* drop ERG
+  on your own pause screen: the shell can't tell "paused" from "recovery interval".
+  **If your game isn't a workout app, don't touch this** — read "the one rule" above: you create
+  demand and the rider answers it; you don't prescribe watts.
 - **`/replay/:runId` is REQUIRED if you save replays.** A replay is only watchable inside
   the game, so the platform deep-links a finished run to
   `https://rydr-platform.vercel.app/game/{slug}/replay/{runId}` — which arrives as your route
