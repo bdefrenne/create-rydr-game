@@ -140,6 +140,14 @@ Hard rules — keep to these:
   countdowns/turns; your own watts are injected by the shell — you only read opponents').
   See `@rydr/game-sdk`'s README (*Backend services*) for how each works; don't learn the API
   from this file.
+- **Never re-derive a platform scale — import it.** A leaderboard row hands you
+  `BoardEntry.ftpDifficulty` in raw **watts**, so if you draw the rider's difficulty badge, get the
+  level and its colour from **`@rydr/game-sdk/difficulty`** (`levelForWatts` → 1 → 50,
+  `visualForLevel` → `{ fill, accent, glow, ink }` CSS strings). Guitar hero learned this the
+  expensive way: it hand-ported the shell's ladder to avoid an SDK dependency, the shell's ladder
+  then changed, and for months the same rider's watts drew a bronze "3" in-game beside a
+  ramp-coloured "26" in the chrome. If a platform concept you need isn't in the SDK yet, add it to
+  the SDK — copying it into your game is how you end up disagreeing with the shell.
 - **Leaderboard boards are declared in *this repo*.** Boards are declarative config the game
   owns — declare them in `package.json`'s `rydr.boards`; they become authoritative when the game's
   registry row is upserted (step 8) so a run's `saveRun({ scores: [{ boardId, value }] })` ranks with
@@ -175,13 +183,16 @@ truth** (it ships its own docs + types). After `npm install`, read:
 the four **positional** face buttons `DIAMOND_UP`/`DIAMOND_DOWN`/`DIAMOND_LEFT`/`DIAMOND_RIGHT`
 (named by position on the pad, never by letter — the bottom button is printed `A` on an Xbox
 pad, `✕` on a DualSense and `B` on a Switch Pro, so a letter would lie to most riders), the two
-shoulder triggers `LT`/`RT` (plain clicks, no analog travel), and the stick presses
-`LSTICK_PRESS`/`RSTICK_PRESS` (the game assigns meaning — the platform never decides "confirm"
-vs "back"). The **house convention** is `DIAMOND_DOWN` = confirm / primary action and
-`DIAMOND_RIGHT` = back / cancel (matching Xbox, PlayStation and Nintendo), with
-`DIAMOND_UP`/`DIAMOND_LEFT` contextual and `LT`/`RT` as extra contextual inputs (no
-convention). Not every controller exposes `LT`/`RT`, the `R*` directions, or a stick press, so
-never gate a required flow behind them alone. **Never hardcode a button letter in on-screen
+shoulder triggers `LT`/`RT` (plain clicks, no analog travel), the stick presses
+`LSTICK_PRESS`/`RSTICK_PRESS`, and `OPTIONS` — the game's OWN menu/options button, distinct from
+the platform's own overlay menu (keyboard `M`/phone `MENU`/gamepad Start, which never reaches a
+game) — use it to open your in-game pause/options screen (the game assigns meaning to all of
+these — the platform never decides "confirm" vs "back"). The **house convention** is
+`DIAMOND_DOWN` = confirm / primary action and `DIAMOND_RIGHT` = back / cancel (matching Xbox,
+PlayStation and Nintendo), with `DIAMOND_UP`/`DIAMOND_LEFT` contextual and `LT`/`RT` as extra
+contextual inputs (no convention). Not every controller exposes `LT`/`RT`, the `R*` directions, a
+stick press, or `OPTIONS`, so never gate a required flow behind them alone. **Never hardcode a
+button letter in on-screen
 text** — print `session.buttonLabel("DIAMOND_DOWN")` (resolves to `"A"`/`"✕"`/`"B"` for the pad
 the rider actually holds) or use a keycap from `@rydr/game-sdk/ui`. Every controller (keyboard,
 phone, Zwift Play/Click) is normalised to these names. Buttons deliver **real
@@ -210,8 +221,8 @@ work), so use either or both. `axis()`/`stick()` are **always readable**:
 on a plain, non-hall controller the value is quantized to the endpoints (`-1`/`0`/`+1`) and
 rests at `0` until a sample arrives, so never branch on "does this controller have hall?" — and never
 *require* an analog axis for a flow that must work everywhere (fall back to the digital button). The
-keyboard emulates axes for local dev (arrow keys → left stick, `i`/`j`/`k`/`l` → right stick), so
-`axis()`/`stick()` work without a controller.
+keyboard emulates axes for local dev (arrow keys → left stick, numpad `8`/`4`/`5`/`6` → right
+stick), so `axis()`/`stick()` work without a controller.
 
 **Menu navigation — don't hand-roll it.** For any DOM menu (start screen, level/song picker,
 pause, results), use the shared spatial-nav engine instead of writing your own focus/selection
@@ -224,6 +235,19 @@ engine, no per-layout code), activates on `A` via the element's own `click`, and
 same engine the platform shell uses, so your menus match the rest of RYDR. Only fully in-canvas
 (WebGL) menus with no DOM elements skip it and read `onButton` directly. See
 `node_modules/@rydr/game-sdk/nav/README.md`.
+
+**The in-game OPTION menu — don't build your own either.** `mountOptionMenu(document.body,
+{ session, title, items })` from **`@rydr/game-sdk/ui`** is the shared overlay every game opens on
+`OPTIONS`: your game's name big at the top **in your own font** (it inherits the page's), a free
+`Resume` row, then your rows — `{ label, onSelect, shortcut?, hint?, disabled?, danger? }`. A row's
+`shortcut` is the button that does the same thing *during play*, drawn as `Shortcut [Y]` so the rider
+learns it (binding it in gameplay is still your job). Gate it to your play phase with
+`canOpen: () => phase === "playing"`. **It cannot pause your game** — freeze your own loop and timers
+in `onOpen`/`onClose` — but it does guarantee a game that keeps running can't be *driven*: it takes
+the controller over while up (`session.grabInput`), so your `onButton` handlers go quiet,
+`isDown`/`stick` read resting, and anything held is released first. It also declares
+`setActivity("menu")` while up and `"playing"` on close, so trainer resistance eases on the pause
+screen with no code from you. See `node_modules/@rydr/game-sdk/ui/README.md`.
 - **`node_modules/@rydr/game-sdk/README.md`** — usage + an API overview.
 
 If anything about the API is unclear, open those — never guess.

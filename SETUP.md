@@ -107,8 +107,10 @@ filter) over raw `power`; tune it per game with `rydr.powerSmoothing` (seconds) 
 Read controller buttons with `session.onButton`/`session.isDown` (canonical, source-agnostic:
 the positional face diamond `DIAMOND_UP`/`DIAMOND_DOWN`/`DIAMOND_LEFT`/`DIAMOND_RIGHT`,
 `UP`/`DOWN`/`LEFT`/`RIGHT`, right-stick `RUP`/`RDOWN`/`RLEFT`/`RRIGHT`, trigger clicks `LT`/`RT`,
-stick presses `LSTICK_PRESS`/`RSTICK_PRESS`; house convention DIAMOND_DOWN=confirm,
-DIAMOND_RIGHT=back — print labels via `session.buttonLabel(name)`, never a hardcoded letter). For
+stick presses `LSTICK_PRESS`/`RSTICK_PRESS`, and `OPTIONS` (the game's OWN menu/options button —
+distinct from the platform's own overlay menu, which never reaches a game); house convention
+DIAMOND_DOWN=confirm, DIAMOND_RIGHT=back — print labels via `session.buttonLabel(name)`, never a
+hardcoded letter). For
 hall-effect analog, the stick axes `session.axis("LX"|"LY"|"RX"|"RY")` give `-1..1` (the only axes —
 `LT`/`RT` are plain clicks, digital only) and
 `session.stick("LSTICK", { deadzone })` gives a radially-deadzoned `{ x, y, magnitude, angle }` (deadzone defaults to `0.1`) — always readable
