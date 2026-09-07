@@ -85,6 +85,33 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
   appending it to your `key` on both submit and read, symmetrically. Pass only your own dimension
   (e.g. a track id) as `key`; in-game you always read back the board matching the current input,
   and the platform `/leaderboards` hub shows the trainer boards.
+- **Overlay mode (only if your game draws boxes over the desktop).** `rydr.overlay` is absent by
+  default, which is right for almost every game. Set `"overlay": true` **only once you have
+  actually built the boxes** — the flag offers an overlay, it does not create one. It lets a rider
+  follow your game over the top of everything else on the machine (a video in another app), and it
+  works only in the RYDR desktop app; in a browser tab `session.overlay.supported` is `false`.
+
+  ```json
+  "overlay": true
+  ```
+
+  Then gate on the flag and **keep drawing your normal screen either way** — same rule as
+  `ergSupported`:
+
+  ```ts
+  import { mountOverlayBoxes } from "@rydr/game-sdk/overlay";
+
+  if (session.overlay.supported) {
+    const overlay = mountOverlayBoxes(session, [
+      { id: "target", label: "Target power", width: 200, height: 110, x: 0.04, y: 0.06, visible: true },
+    ]);
+    overlay.get("target")!.body.textContent = "248 W";  // your content, your DOM
+  }
+  ```
+
+  The registry row carries it as `manifest.overlay`; `/admin.html` has a checkbox for it. In solo
+  dev the `rydr-dev-shell` bin forwards `rydr.overlay` for you, so `npm run dev` sees it without a
+  registry round-trip.
 - Port defaults to `3400` (in `vite.config.ts` **and** the `dev` script's
   `--game http://localhost:<port>`); change both only if it clashes with something running.
 
@@ -234,6 +261,7 @@ registry row:
        "url":"https://rydr-game-<slug>.vercel.app",
        "capabilities":["power","cadence","heartRate","speed","buttons","identity"],
        "boards":[ /* each rydr.boards entry: {id,label,valueType,sort,aggregate} */ ],
+      /* "overlay": true  — only if your game draws boxes over the desktop (see above) */
        "isLive":true } ]
    /* Optional artwork: "squareImage" (1:1) and "coverImage" (3:1), each an object
       { "original", "large", "small" } of WebP URLs. Easiest to add by uploading in /admin.html
