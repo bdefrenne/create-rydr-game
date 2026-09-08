@@ -34,7 +34,9 @@ async function boot(): Promise<void> {
   // --- Controller input (canonical, source-agnostic) ---
   // session.onButton((e) => {...})   → button edges, e.edge down/up. e.name is positional:
   //   DIAMOND_UP/DIAMOND_DOWN/DIAMOND_LEFT/DIAMOND_RIGHT (face diamond), UP/DOWN/LEFT/RIGHT (d-pad + left
-  //   stick), RUP/RDOWN/RLEFT/RRIGHT (right stick), LT/RT (trigger clicks), LSTICK_PRESS/RSTICK_PRESS.
+  //   stick), RUP/RDOWN/RLEFT/RRIGHT (right stick), LT/RT (trigger clicks), LSTICK_PRESS/RSTICK_PRESS,
+  //   OPTIONS (the game's OWN menu/options button — distinct from the platform's own overlay menu,
+  //   which never reaches a game).
   //   Default: ONE `down` per press (held-button re-emits swallowed) — right for menus.
   //   Hold-to-repeat: session.onButton((e) => {...}, { repeats: true }) then branch on e.repeat.
   // session.isDown("DIAMOND_DOWN")   → poll a held button in your game loop
@@ -45,7 +47,7 @@ async function boot(): Promise<void> {
   // session.stick("LSTICK", { deadzone: 0.1 }) → joystick as { x, y, magnitude, angle }, radially deadzoned (use for 2D move/aim).
   //   Always readable: continuous on hall hardware, quantized to endpoints (-1/0/+1) on a plain controller;
   //   the digital direction edges keep firing in parallel (shell owns the threshold) — use either or both.
-  //   Keyboard emulates axes too (dev): arrow keys → left stick (LX/LY), i/j/k/l → right stick (RX/RY).
+  //   Keyboard emulates axes too (dev): arrow keys → left stick (LX/LY), numpad 8/4/5/6 → right stick (RX/RY).
   // session.vibrate("hit")           → rumble the controller. Named: "tick" | "hit" | "success" | "gameOver",
   //   or custom: session.vibrate({ pattern: [100, 50, 100], intensity: 1 }) (on/off ms + 0..1 strength).
   //   Needs the `buttons` capability; best-effort — a silent no-op with no controller / on Safari.
@@ -66,6 +68,31 @@ async function boot(): Promise<void> {
   // all built in (each opt-out). Seed focus with nav.focusFirst(); style the ring with
   // `[nav-focused] { … }` or pass `ring: false` for the SDK default. See @rydr/game-sdk/nav's README.
   // (Only fully in-canvas/WebGL menus — no DOM elements — skip this and read session.onButton directly.)
+  //
+  // --- The in-game OPTION menu — use the shared one, don't build your own ---
+  // Every game needs "the rider pressed OPTIONS mid-play": the SDK ships that overlay, so all games
+  // share one look, animation and behaviour. Your game's name goes big at the top IN YOUR FONT (it
+  // inherits the page's), `Resume` is free, and you add the rest:
+  //   import { mountOptionMenu } from "@rydr/game-sdk/ui";
+  //   const menu = mountOptionMenu(document.body, {
+  //     session,
+  //     title: "My Game",                   // your name, your font
+  //     canOpen: () => phase === "playing", // so it never opens on top of your own menus
+  //     onOpen:  () => { paused = true },   // YOU freeze your loop — see below
+  //     onClose: () => { paused = false },
+  //     items: [
+  //       { label: "Restart", shortcut: "DIAMOND_UP", onSelect: () => restart() },
+  //       { label: "Back to menu", onSelect: () => router.go("/") },
+  //     ],
+  //   });
+  // It opens itself on OPTIONS; ▲▼ move, A picks, OPTIONS/B resume. A row's `shortcut` is the button
+  // that does the same thing DURING PLAY, drawn as `Shortcut [Y]` so the rider learns it — binding it
+  // in gameplay is still your job. Rows also take hint / disabled / danger / keepOpen.
+  // IT CANNOT PAUSE YOUR GAME — no library can; freeze your own loop/timers in onOpen/onClose. What it
+  // does guarantee is that a game which keeps running can't be DRIVEN: it takes the controller over
+  // while up (session.grabInput), so your onButton handlers go quiet, isDown/stick read resting, and
+  // anything held is released first. It also declares setActivity("menu") while up and "playing" on
+  // close, so trainer resistance eases on the pause screen for free.
   //
   // --- Lifecycle hooks you'll likely use (uncomment as needed) ---
   // session.identity.ftp / .weightKg / .displayName  → scoped, PII-free player data
