@@ -163,8 +163,12 @@ async function boot(): Promise<void> {
   //     `state` is `{}` until the server's hello lands. Wait for `open`/`presence`/`state` — never
   //     read the handle on the next line. A join the shell never answers produces no error and no
   //     `close`, so if you need to know, time it out yourself.
-  //  3. **`close` does not say why.** A full room, a refused grant and a wifi blip are the same
-  //     event today. Reconnect with backoff, not in a tight loop.
+  //  3. **`close` tells you WHY — read it.** `(reason)` is "dropped" (TRANSIENT: the shell is
+  //     already reconnecting and will re-open the same room — hold your state, and do NOT start
+  //     your own rejoin loop or two of them race through one socket), "full" (at capacity; the SDK
+  //     stopped retrying on purpose), "refused" (the registry says this game is not multiplayer —
+  //     PERMANENT, never retry, just carry on single-player) or "left" (you called `leave()`).
+  //     `undefined` means an older shell that cannot say: treat as unknown, never as transient.
   //  4. **There is no matchmaking, listing or discovery.** `joinRoom` takes any string, and joining
   //     an id nobody is in silently CREATES an empty room — so "wrong code" and "I'm first" are
   //     indistinguishable. Decide which one you meant from the player's intent, not from the room.
