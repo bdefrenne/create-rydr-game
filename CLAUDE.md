@@ -152,6 +152,20 @@ Hard rules — keep to these:
   countdowns/turns; your own watts are injected by the shell — you only read opponents').
   See `@rydr/game-sdk`'s README (*Backend services*) for how each works; don't learn the API
   from this file.
+- **Saves survive a network blink — do NOT write your own cache for them.** `saveData` is durable
+  as of `@rydr/core-data` 0.10.0 (PLAT-1560): a write the network refuses is kept on disk by the
+  shell and replayed when the rider is back online, and — the part that matters for your code — a
+  `getData`/`listData` for a key with a write still pending returns **your pending value**, not the
+  server's older copy. So a hydrate-on-boot reads what the rider last did, offline or not.
+
+  This is worth stating because the obvious defensive move is now the wrong one. Racing hand-rolled
+  a `localStorage` cache per document, which was right at the time and is now redundant — and its
+  `hydrate()` overwrote that cache with the server's copy on the next boot, which is where the
+  rider's offline progress actually died. Guitar Hero had no cache and lost a save outright. Both
+  are fixed by the platform, for every game, with no game change.
+
+  What you still own: your in-memory state, and not treating a resolved `saveData` as proof the
+  server has it. It means "safe" — written or durably queued — which is the guarantee you want.
 - **Never re-derive a platform scale — import it.** A leaderboard row hands you
   `BoardEntry.ftpDifficulty` in raw **watts**, so if you draw the rider's difficulty badge, get the
   level and its colour from **`@rydr/game-sdk/difficulty`** (`levelForWatts` → 1 → 50,
