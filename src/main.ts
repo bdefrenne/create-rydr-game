@@ -155,6 +155,22 @@ async function boot(): Promise<void> {
   // YOUR watts are injected into the room by the shell automatically — you only ever READ opponents'
   // telemetry. Position/score travel over the opaque channel (not cheat-proof); telemetry is trusted.
   //
+  // Four things that WILL bite, and have bitten every game that shipped a room so far:
+  //  1. **Your registry row must say `multiplayer`** (a checkbox in /admin.html). Rooms are the
+  //     shell's grant, not your declaration — if it's off, the shell hosts nothing and you get a
+  //     loopback room with only yourself in it. It's on by default for a new game.
+  //  2. **`joinRoom` returns SYNCHRONOUSLY, before anything is connected.** `members` is empty and
+  //     `state` is `{}` until the server's hello lands. Wait for `open`/`presence`/`state` — never
+  //     read the handle on the next line. A join the shell never answers produces no error and no
+  //     `close`, so if you need to know, time it out yourself.
+  //  3. **`close` does not say why.** A full room, a refused grant and a wifi blip are the same
+  //     event today. Reconnect with backoff, not in a tight loop.
+  //  4. **There is no matchmaking, listing or discovery.** `joinRoom` takes any string, and joining
+  //     an id nobody is in silently CREATES an empty room — so "wrong code" and "I'm first" are
+  //     indistinguishable. Decide which one you meant from the player's intent, not from the room.
+  // The room id is namespaced per game by the shell (`{yourSlug}:{roomId}`), so you cannot collide
+  // with another game and cannot reach one either.
+  //
   // There is NO activity/FIT API. The platform records every session automatically
   // from its own hardware stream — your game does nothing for recording.
   //

@@ -149,7 +149,12 @@ Hard rules — keep to these:
   **game-data store** (`shared` content, `player` saves, `public` UGC), **asset hosting**
   (`getUploadUrl`), and **realtime rooms** (`joinRoom` → presence, *trusted* opponent `telemetry`,
   opaque `send`/`setState`, and server-stamped `scheduleEvent` for fair, head-start-free
-  countdowns/turns; your own watts are injected by the shell — you only read opponents').
+  countdowns/turns; your own watts are injected by the shell — you only read opponents'). Rooms are
+  the shell's **grant**: your registry row must not have `multiplayer` turned off, or `joinRoom`
+  hands you a loopback room with only you in it and says nothing. `joinRoom` also returns
+  SYNCHRONOUSLY, before the room exists — wait for `open`/`presence`/`state` — and `close` never
+  says why (full, refused and a wifi blip are one event). Read the gotchas in `src/main.ts` before
+  you build on it.
   See `@rydr/game-sdk`'s README (*Backend services*) for how each works; don't learn the API
   from this file.
 - **Saves survive a network blink — do NOT write your own cache for them.** `saveData` is durable

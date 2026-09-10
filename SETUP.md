@@ -112,6 +112,22 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
   The registry row carries it as `manifest.overlay`; `/admin.html` has a checkbox for it. In solo
   dev the `rydr-dev-shell` bin forwards `rydr.overlay` for you, so `npm run dev` sees it without a
   registry round-trip.
+- **Multiplayer (only if you call `session.joinRoom`).** Realtime rooms are the shell's **grant**,
+  not your declaration: it opens and owns the socket for you (which is what makes a rival's identity
+  and wattage unforgeable), so the registry decides whether it will. `/admin.html` has a
+  **Multiplayer** checkbox, **ticked by default** for a new game — so a fresh row is fine and you
+  only touch this to turn rooms OFF. If it is off, `joinRoom` still returns a handle and you get a
+  loopback room containing only yourself, with no error: that is the symptom to recognise.
+
+  ```json
+  "multiplayer": true,
+  "maxPlayers": 8
+  ```
+
+  `maxPlayers` is the cap in **players** (a rider who reconnects resumes their slot rather than
+  taking a second one). Leave it out and the room server's own default applies — raise it rather
+  than lower it, because a rejected joiner currently sees an ordinary `close` and cannot tell it
+  from a dropped connection. See the four room gotchas in `src/main.ts`.
 - Port defaults to `3400` (in `vite.config.ts` **and** the `dev` script's
   `--game http://localhost:<port>`); change both only if it clashes with something running.
 
@@ -280,6 +296,8 @@ registry row:
        "capabilities":["power","cadence","heartRate","speed","buttons","identity"],
        "boards":[ /* each rydr.boards entry: {id,label,valueType,sort,aggregate} */ ],
       /* "overlay": true  — only if your game draws boxes over the desktop (see above) */
+      /* "multiplayer": true, "maxPlayers": 8  — only if you call session.joinRoom (see above);
+         absent means the shell hosts rooms anyway, so you only set this to turn them OFF */
        "isLive":true } ]
    /* Optional artwork: "squareImage" (1:1) and "coverImage" (3:1), each an object
       { "original", "large", "small" } of WebP URLs. Easiest to add by uploading in /admin.html
