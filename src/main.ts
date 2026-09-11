@@ -42,6 +42,9 @@ async function boot(): Promise<void> {
   // session.isDown("DIAMOND_DOWN")   → poll a held button in your game loop
   //   House convention: DIAMOND_DOWN = confirm, DIAMOND_RIGHT = back; DIAMOND_UP/DIAMOND_LEFT and LT/RT
   //   contextual (game-assigned). On-screen text: session.buttonLabel(name), never a hardcoded letter.
+  //   An @rydr/game-sdk/ui keycap needs the lettering handed to it as well — pass
+  //   `glyphSet: session.hardware.current.glyphSet` (or `press: session`); given neither it
+  //   quietly prints Xbox letters, which on a Switch pad name the opposite button.
   // session.axis("LX")               → analog hall-effect stick value: LX/LY/RX/RY -1..1 (right/up +1).
   //   Sticks are the ONLY axes — LT/RT are plain clicks (no analog travel), read them with isDown/onButton.
   // session.stick("LSTICK", { deadzone: 0.1 }) → joystick as { x, y, magnitude, angle }, radially deadzoned (use for 2D move/aim).

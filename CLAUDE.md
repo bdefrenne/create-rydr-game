@@ -225,7 +225,15 @@ contextual inputs (no convention). Not every controller exposes `LT`/`RT`, the `
 stick press, or `OPTIONS`, so never gate a required flow behind them alone. **Never hardcode a
 button letter in on-screen
 text** — print `session.buttonLabel("DIAMOND_DOWN")` (resolves to `"A"`/`"✕"`/`"B"` for the pad
-the rider actually holds) or use a keycap from `@rydr/game-sdk/ui`. Every controller (keyboard,
+the rider actually holds) or use a keycap from `@rydr/game-sdk/ui`. **A keycap needs the rider's
+lettering handed to it** — pass `glyphSet: session.hardware.current.glyphSet` (or `press: session`,
+which also wires the pressed sink) to `createKeycap`/`createDpadKeycap`/`createButtonKeycap`/
+`mountLabeledDiamond`, and `press:` to `mountSoloLabeledDiamond` (the only one of them that takes no
+`glyphSet`). Give it neither and it does **not** fail loudly: it falls back to the Xbox set and
+prints the wrong letter forever. That is worst on a Switch pad, where confirm is printed `B` and
+back `A` — the exact opposite of the Xbox letters — so an unlettered cap names the button that does
+the other thing. Build caps where the session is reachable, or park it in one small module the cap
+builders read (the platform shell does this in `src/platform/shellKeycaps.ts`). Every controller (keyboard,
 phone, Zwift Play/Click) is normalised to these names. Buttons deliver **real
 hold edges**: `onButton` fires `{name, edge, repeat}` with `edge: "down"` on press and `"up"`
 on release. **By default `onButton(cb)` gives you one `down` per physical press** — the shell

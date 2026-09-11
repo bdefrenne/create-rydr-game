@@ -153,7 +153,10 @@ the positional face diamond `DIAMOND_UP`/`DIAMOND_DOWN`/`DIAMOND_LEFT`/`DIAMOND_
 stick presses `LSTICK_PRESS`/`RSTICK_PRESS`, and `OPTIONS` (the game's OWN menu/options button —
 distinct from the platform's own overlay menu, which never reaches a game); house convention
 DIAMOND_DOWN=confirm, DIAMOND_RIGHT=back — print labels via `session.buttonLabel(name)`, never a
-hardcoded letter). For
+hardcoded letter; an `@rydr/game-sdk/ui` keycap needs that lettering passed in too —
+`glyphSet: session.hardware.current.glyphSet` (or `press: session`), or it silently falls back to
+Xbox letters and names the wrong button on a Switch pad, whose confirm is printed `B` and back `A`).
+For
 hall-effect analog, the stick axes `session.axis("LX"|"LY"|"RX"|"RY")` give `-1..1` (the only axes —
 `LT`/`RT` are plain clicks, digital only) and
 `session.stick("LSTICK", { deadzone })` gives a radially-deadzoned `{ x, y, magnitude, angle }` (deadzone defaults to `0.1`) — always readable
