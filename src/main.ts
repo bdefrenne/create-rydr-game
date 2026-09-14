@@ -158,7 +158,7 @@ async function boot(): Promise<void> {
   // YOUR watts are injected into the room by the shell automatically — you only ever READ opponents'
   // telemetry. Position/score travel over the opaque channel (not cheat-proof); telemetry is trusted.
   //
-  // Four things that WILL bite, and have bitten every game that shipped a room so far:
+  // Five things that WILL bite, and have bitten every game that shipped a room so far:
   //  1. **Your registry row must say `multiplayer`** (a checkbox in /admin.html). Rooms are the
   //     shell's grant, not your declaration — if it's off, the shell hosts nothing and you get a
   //     loopback room with only yourself in it. It's on by default for a new game.
@@ -175,6 +175,33 @@ async function boot(): Promise<void> {
   //  4. **There is no matchmaking, listing or discovery.** `joinRoom` takes any string, and joining
   //     an id nobody is in silently CREATES an empty room — so "wrong code" and "I'm first" are
   //     indistinguishable. Decide which one you meant from the player's intent, not from the room.
+  //  5. **BOTS AND ANYTHING ELSE NOBODY DRIVES need an owner.** Fill a lobby with bots and every
+  //     client will happily simulate its own — so two players race two different fields. The five
+  //     rules below are not a suggestion: both games that shipped bots in a room arrived at them
+  //     separately, and each paid for one of them in a bug a player reported.
+  //       a. **Exactly ONE client owns each non-human entity**, and everyone else replays or
+  //          corrects toward what that client says. Pick it with the same election you use for any
+  //          other host job — there is one host per room, not one per job.
+  //       b. **Ownership is a function of PRESENCE AND LIVENESS, recomputed every read, never
+  //          latched.** The roster says who is in the room; it does NOT say whose client is still
+  //          ticking. A backgrounded tab has its `requestAnimationFrame` frozen while its socket
+  //          stays open, so it keeps its slot and keeps winning the election while doing no work.
+  //          Judge a peer by whether their own stream has gone quiet relative to the rate THEY were
+  //          sending at, and treat "every peer went quiet at once" as your own link, not theirs.
+  //       c. **Make it STICKY, and hand it on only forwards.** Once the field has moved to someone
+  //          else, do not give it back when the original wakes up: their simulation has been stopped
+  //          for however long they were away, so handing authority back snaps every entity to a
+  //          stale position.
+  //       d. **Roster and results go in `setState`; per-tick motion goes in `send`.** State reaches
+  //          a late joiner in their hello and survives a reconnect; a message is delivered once and
+  //          is gone. Anything a newcomer must agree with you about — who is on the grid, who
+  //          finished — belongs in state, or they will derive their own answer and be wrong.
+  //       e. **Solo is the same code path with `owns() === true`.** Do not write a single-player
+  //          mode and a multiplayer mode; write one, in which a player alone owns everything.
+  //     If your entities are deterministic from a seed, prefer simulating them everywhere and using
+  //     the owner's stream as a CORRECTION — a correction only has to arrive often enough to bound
+  //     the drift, not often enough to animate. If they are not (their AI reads the local world),
+  //     you have to replay the owner's stream outright. Either way the ownership rules above hold.
   // The room id is namespaced per game by the shell (`{yourSlug}:{roomId}`), so you cannot collide
   // with another game and cannot reach one either.
   //

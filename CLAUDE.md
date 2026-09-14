@@ -152,9 +152,14 @@ Hard rules — keep to these:
   countdowns/turns; your own watts are injected by the shell — you only read opponents'). Rooms are
   the shell's **grant**: your registry row must not have `multiplayer` turned off, or `joinRoom`
   hands you a loopback room with only you in it and says nothing. `joinRoom` also returns
-  SYNCHRONOUSLY, before the room exists — wait for `open`/`presence`/`state` — and `close` never
-  says why (full, refused and a wifi blip are one event). Read the gotchas in `src/main.ts` before
-  you build on it.
+  SYNCHRONOUSLY, before the room exists — wait for `open`/`presence`/`state` — and `close` carries a
+  `reason` you must read: `"dropped"` is transient and the shell is already reconnecting (never
+  start your own rejoin loop beside it), `"refused"` is permanent, `undefined` means an older shell
+  and is UNKNOWN, never transient. **And if you put bots — or anything else no player drives — in a
+  room, exactly one client must own each of them, chosen by presence AND liveness and never
+  latched:** a backgrounded tab keeps its socket and its election while its render loop is frozen,
+  which is how a whole bot field stops existing for everyone. Read the gotchas in `src/main.ts`
+  before you build on it; they are all bugs a player reported, not theory.
   See `@rydr/game-sdk`'s README (*Backend services*) for how each works; don't learn the API
   from this file.
 - **Saves survive a network blink — do NOT write your own cache for them.** `saveData` is durable
