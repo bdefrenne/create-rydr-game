@@ -1,0 +1,70 @@
+# Manual production deploy: anyone with write access to this repo can ship, from
+# Actions -> Deploy to production -> Run workflow.
+#
+# Why it exists: Vercel Hobby blocks any deployment whose COMMIT AUTHOR has no
+# contributing access to the project, and Hobby cannot grant that to anyone. So a
+# push by anyone but the account owner never ships. A deploy hook does not get
+# around it either: the hook fires, Vercel then checks the author, and blocks.
+# Deploying through the Vercel CLI does, because the deployment is attributed to
+# the token's owner rather than to whoever wrote the commit.
+#
+# Setup is step 7 of SETUP.md: fill in the two ids below from .vercel/project.json,
+# then add a project-scoped token as the repo secret VERCEL_TOKEN.
+
+name: Deploy to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: What are you shipping?
+        required: true
+
+# Two people pressing the button at once queue instead of racing.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Not secrets - they sit in every contributor's gitignored .vercel/project.json.
+  VERCEL_ORG_ID: REPLACE_WITH_ORG_ID
+  VERCEL_PROJECT_ID: REPLACE_WITH_PROJECT_ID
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Uploads the source and builds ON VERCEL, exactly as a git push does, so the
+      # build environment stays the one place it is configured. Nothing is built on
+      # the runner.
+      - name: Deploy to production
+        id: deploy
+        run: |
+          url=$(npx --yes vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $url"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      # `reason` is free text from whoever pressed the button, so it goes through env
+      # rather than straight into the run: line, which would let it run arbitrary
+      # commands on the runner.
+      - name: Write summary
+        if: always()
+        env:
+          REASON: ${{ inputs.reason }}
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          {
+            echo "**${{ github.actor }}** shipped \`${{ github.ref_name }}\` to production."
+            echo ""
+            echo "> $REASON"
+            echo ""
+            echo "Commit: ${{ github.sha }}"
+            [ -n "$URL" ] && echo "Deployment: $URL"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -238,9 +238,14 @@ CLI** — it's required (see Prerequisites). If it still isn't available, instal
 **now** (`brew install gh` on macOS, or https://cli.github.com); a missing `gh` is **never** a
 reason to skip creating the repo.
 
+**`<owner>` should be `bdefrenne`** whenever you have access to create there, so the game lives
+where every other RYDR game lives from day one. Creating it under a personal account and
+transferring later works, but the transfer is a manual dance (step 7.1) and it invalidates the
+deploy token you are about to make, so prefer getting it right here.
+
 ```bash
 git add -A && git commit -m "Initial RYDR game: <slug>"
-gh repo create <owner>/rydr-game-<slug> --private --source=. --push
+gh repo create bdefrenne/rydr-game-<slug> --private --source=. --push
 ```
 
 (Last resort only if the user genuinely can't install `gh`: still create the repo — have them make
@@ -263,8 +268,59 @@ vercel git connect     # wire the pushed GitHub repo → auto-deploy on every pu
 npm run deploy         # `vercel --prod` → first production deploy; prints the production URL
 ```
 
-Note the printed **production URL** for the next step. After this, ordinary `git push` to `main`
-redeploys automatically — you only re-run `npm run deploy` for an out-of-band manual deploy.
+Note the printed **production URL** for the next step. After this, a `git push` to `main` redeploys
+automatically **only when the account owner authored the commit** — see 7.2 for why, and for the
+button that lets everyone else ship.
+
+### 7.1 Hand the repo and the Vercel project to `bdefrenne`
+
+RYDR games live under `bdefrenne` on both GitHub and Vercel. If you created either somewhere else,
+move it **now**, before the token in 7.2: a token belongs to an account, so transferring afterwards
+silently breaks the deploy button.
+
+```bash
+gh api -X POST repos/<owner>/rydr-game-<slug>/transfer -f new_owner=bdefrenne
+```
+
+The recipient has to accept the transfer, so tell the user it is waiting for them. The Vercel side
+has no CLI: ask them to do it in the dashboard (project → Settings → Advanced → **Transfer
+Project**), then re-run `npm run deploy:link` so `.vercel/project.json` holds the new ids.
+
+Skip this section entirely if both already live under `bdefrenne`.
+
+### 7.2 Wire the manual deploy button
+
+Vercel Hobby blocks any deployment whose **commit author** lacks contributing access to the
+project, and Hobby cannot grant that to anyone. So a push by anyone but the account owner never
+ships, which strands a collaborator's work. `.github/workflows/deploy-production.yml` (already in
+this repo) fixes it by deploying through the Vercel CLI, which attributes the deployment to the
+token's owner rather than to the git author. A deploy hook does **not** work: it fires, and Vercel
+blocks on the author anyway.
+
+Fill in the two ids from the `.vercel/` written by `deploy:link`, **you can do this yourself**:
+
+```bash
+node -e 'const p=require("./.vercel/project.json"),f=".github/workflows/deploy-production.yml",fs=require("fs");
+fs.writeFileSync(f,fs.readFileSync(f,"utf8").replace("REPLACE_WITH_ORG_ID",p.orgId).replace("REPLACE_WITH_PROJECT_ID",p.projectId));'
+grep VERCEL_ .github/workflows/deploy-production.yml   # confirm both ids landed
+```
+
+Then **ask the user** for the one thing you cannot do, and wait:
+
+1. Create a **project-scoped** token at <https://vercel.com/account/tokens> — open **Scope**, click
+   into the account that owns the project, and select this individual project. Not "All Projects",
+   which quietly makes a token for every project instead. The value starts with `vcp_` and is shown
+   once.
+2. Store it, **in their own terminal so it never lands in the chat**: `gh secret set VERCEL_TOKEN`
+
+Verify with `gh secret list` (you see the name, never the value), commit the workflow, push, then
+prove it works rather than assuming:
+
+```bash
+gh workflow run "Deploy to production" -f reason="Setup test"
+sleep 5 && gh run list --workflow="Deploy to production" --limit 1
+gh run watch <run-id>            # on failure: gh run view <run-id> --log-failed
+```
 
 ## 8. Register in the library (LIVE by default) — **do it yourself, don't punt to the user**
 
@@ -346,6 +402,11 @@ GitHub-repo box means the game is **not done**, no matter what's live.
 - [ ] **Vercel project linked *and* git-connected** — `.vercel/` exists and `vercel git connect` was
       run (so pushes to `main` auto-deploy).
 - [ ] **Production deploy succeeded** — `npm run deploy` printed a production URL.
+- [ ] **Repo and Vercel project belong to `bdefrenne`** — or the transfer is pending and you told
+      the user it needs accepting (step 7.1).
+- [ ] **The deploy button works** — the two ids in `.github/workflows/deploy-production.yml` are
+      real (no `REPLACE_WITH_`), `gh secret list` shows `VERCEL_TOKEN`, and a `gh workflow run`
+      test deploy went green. A green run, not just a committed file.
 - [ ] **Registered in the library** — you upserted the game into Supabase `public.games` via a
       `register_<slug>` migration + `supabase db push` (Live by default, or draft if asked), verified
       with the public read, and committed the migration in `../rydr-platform`. Entry URL points at the
