@@ -168,10 +168,14 @@ async function boot(): Promise<void> {
   //     `close`, so if you need to know, time it out yourself.
   //  3. **`close` tells you WHY — read it.** `(reason)` is "dropped" (TRANSIENT: the shell is
   //     already reconnecting and will re-open the same room — hold your state, and do NOT start
-  //     your own rejoin loop or two of them race through one socket), "full" (at capacity; the SDK
-  //     stopped retrying on purpose), "refused" (the registry says this game is not multiplayer —
-  //     PERMANENT, never retry, just carry on single-player) or "left" (you called `leave()`).
-  //     `undefined` means an older shell that cannot say: treat as unknown, never as transient.
+  //     your own rejoin loop or two of them race through one socket), "superseded" (ANOTHER SOCKET
+  //     TOOK YOUR SLOT — usually the rider's own second tab. Terminal for this handle: nothing will
+  //     re-open, so do not hold state waiting. Re-joining evicts them and they evict you straight
+  //     back, so make it the RIDER's choice, never an automatic retry), "full" (at capacity; the
+  //     SDK stopped retrying on purpose), "refused" (the registry says this game is not
+  //     multiplayer — PERMANENT, never retry, just carry on single-player) or "left" (you called
+  //     `leave()`). `undefined` means an older shell that cannot say: treat as unknown, never as
+  //     transient.
   //  4. **There is no matchmaking, listing or discovery.** `joinRoom` takes any string, and joining
   //     an id nobody is in silently CREATES an empty room — so "wrong code" and "I'm first" are
   //     indistinguishable. Decide which one you meant from the player's intent, not from the room.

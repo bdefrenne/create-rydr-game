@@ -154,8 +154,9 @@ Hard rules — keep to these:
   hands you a loopback room with only you in it and says nothing. `joinRoom` also returns
   SYNCHRONOUSLY, before the room exists — wait for `open`/`presence`/`state` — and `close` carries a
   `reason` you must read: `"dropped"` is transient and the shell is already reconnecting (never
-  start your own rejoin loop beside it), `"refused"` is permanent, `undefined` means an older shell
-  and is UNKNOWN, never transient. **And if you put bots — or anything else no player drives — in a
+  start your own rejoin loop beside it), `"superseded"` means another socket took your slot — the
+  rider's own second tab, usually — and is terminal for that handle, `"refused"` is permanent,
+  `undefined` means an older shell and is UNKNOWN, never transient. **And if you put bots — or anything else no player drives — in a
   room, exactly one client must own each of them, chosen by presence AND liveness and never
   latched:** a backgrounded tab keeps its socket and its election while its render loop is frozen,
   which is how a whole bot field stops existing for everyone. Read the gotchas in `src/main.ts`
