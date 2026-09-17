@@ -112,8 +112,8 @@ async function boot(): Promise<void> {
   //   testers never see it); gate on "beta" for the eventual free/paid line. The shell knows
   //   nothing about your tracks or levels — which ones are free is your call, not the registry's.
   // session.setActivity("playing" | "menu") → declare racing vs any non-racing screen so the shell
-  //   holds FULL resistance in play and EASES it (~35%) on menus (see the active call after ready()
-  //   above). Default is "menu"; the shell resets you to it on pause/exit/crash — you only toggle.
+  //   restores base ERG in menus and applies the selected effort preference in play.
+  //   Active workouts retain their targets; menu state never pauses their clock.
   // session.setRoute("play")            → project your internal route into the top URL
   // NOTE: there's no "menu chrome" call — the shell's platform menu is summoned on demand (MENU
   //   button / M key), and the trainerless power bar stays visible everywhere so a keyboard rider

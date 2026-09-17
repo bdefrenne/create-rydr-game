@@ -315,3 +315,7 @@ If anything about the API is unclear, open those — never guess.
 ## Platform-owned training (PLAT-1623)
 
 Describe supported experiences in `rydr.training` and the registry's `training` object: optional `steady`, `dynamic`, and `workouts` string descriptions. Missing means legacy Dynamic behaviour; never advertise support a game has not implemented. Select Steady/Dynamic inside your game via `session.training.setEffort(...)`, then use existing `setActivity` for menu/play transitions. `session.training.supported` detects older hosts; `current` and `subscribe` provide the complete workout plan and authoritative live progress. Games must not create a training clock or end the platform ride on exit. The default workout overlay and coordinated pause controls are deferred.
+
+### SDK 8.22.0 clarification
+
+The historical menu-easing and game-owned ERG guidance above is superseded: report menu/playing with `session.setActivity`, choose Steady/Dynamic with `session.training.setEffort`, and consume workout snapshots through `session.training`. Training-aware games never command their own ERG targets. Menus restore base ERG; active workouts retain priority and keep running. Legacy `identity.ftp` remains game difficulty; workout FTP comes from workout progress.
