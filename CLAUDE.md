@@ -36,10 +36,7 @@ speed, the turret's fire rate…). **If your game's main mechanic isn't driven b
 - **Stream rate is yours to cap.** The shell streams at the trainer's native rate by default; call
   `session.setHardwareRate(hz)` to cap it (anti-aliased — a ceiling, never an upsampler), or
   `session.setHardwareRate(null)` for no limit. Callable any time.
-- **The game creates demand; the rider responds.** No prescriptive targets — no "hold 250 W for
-  4 min", no ERG, no zone bar to sit inside. Instead the *game* makes the rider want to push: a
-  surge of enemies → push harder; a hill → dig in; lulls → recover. The pacing of those events
-  *is* the workout.
+- **Support the chosen experience.** Steady keeps base ERG; Dynamic releases it during gameplay. Structured workouts are selected and executed by the platform. Read the full plan and live position through `session.training`; games adapt content without owning a workout clock or ERG target. Actual watts always drive gameplay bonuses, even above a prescribed target.
 - **The loop: SEE → REACT → PUSH → SEE.** The player sees a threat, pushes, and immediately sees
   the result. Keep current effort visible as *feedback* (a power bar, position, fire rate) —
   feedback is fine; *instructions* are not.
@@ -64,6 +61,21 @@ Hard rules — keep to these:
 - **Hardware + identity come from the shell**, via `session.hardware` and `session.identity`.
   Never connect to BLE/Bluetooth or read a profile yourself. `session.identity.ftp` is
   **always** a usable number (the platform defaults it) — no fallback needed.
+- **Which of YOUR experiences a rider may see is YOUR decision — the shell only states their tier.**
+  `session.identity.accessTier` is `free` | `beta` | `all_access`, and you read it with the SDK's
+  `tierAtLeast(...)`, **never** by comparing the string (`tier === "beta"` silently excludes every
+  `all_access` rider from content they are entitled to, and breaks outright the day a rung is added):
+  ```ts
+  import { tierAtLeast } from "@rydr/game-sdk";
+  if (tierAtLeast(session.identity.accessTier, "all_access")) showUnfinishedCareerMode();
+  ```
+  Two rungs, two different jobs. **`all_access` hides work in progress** — only a dozen accounts hold
+  it, so a mode gated on it is invisible to every beta tester and visible to the people building it;
+  that is how you ship a half-built mode without hiding the whole game. **`beta` is the paid-tier
+  line** for later, when free riders exist. The shell holds no list of your songs, tracks or levels
+  and never will: it hands you a calibrated fact, exactly like `ftp`, and you decide.
+  It is a **UI hint** (like `isAdmin`): it says what to OFFER. The day real money hangs on a tier,
+  enforcement has to be server-side too.
 - **The platform records the activity + FIT automatically — you do nothing.** Every
   session is recorded by the shell from its own hardware stream. There is **no** activity
   API on the SDK; never build your own FIT encoder or write activities to a backend.
@@ -192,8 +204,11 @@ Hard rules — keep to these:
   Keep `rydr.boards` in the repo as the canonical record. See `SETUP.md`.
 - **Shipping is mandatory, not optional.** Creating a game isn't done until **all three** ship
   deliverables exist, in order: (1) **pushed to a GitHub repo** (`rydr-game-<slug>`, created via the
-  `gh` CLI) → (2) **deployed** to its per-game, GitHub-connected Vercel project (`npm run deploy:link`
-  + `npm run deploy`) → (3) **registered** by **you** — upsert the game into Supabase `public.games`
+  `gh` CLI, **under `bdefrenne`** so it sits with every other RYDR game) → (2) **deployed** to its
+  per-game, GitHub-connected Vercel project (`npm run deploy:link` + `npm run deploy`), then wired
+  with the **manual deploy button** (`.github/workflows/deploy-production.yml` + a project-scoped
+  `VERCEL_TOKEN`, SETUP.md step 7.2 — without it a push by anyone but the account owner never ships,
+  because Vercel Hobby blocks on the commit author) → (3) **registered** by **you** — upsert the game into Supabase `public.games`
   via a `register_<slug>` migration + `supabase db push` in the `../rydr-platform` sibling (no admin
   secret; the `supabase` CLI must be connected — the one thing to ask the user if it isn't). **Live**
   so it appears in the public library (or a hidden draft via `isLive:false`, testable on the shell
@@ -296,3 +311,7 @@ screen with no code from you. See `node_modules/@rydr/game-sdk/ui/README.md`.
 - **`node_modules/@rydr/game-sdk/README.md`** — usage + an API overview.
 
 If anything about the API is unclear, open those — never guess.
+
+## Platform-owned training (PLAT-1623)
+
+Describe supported experiences in `rydr.training` and the registry's `training` object: optional `steady`, `dynamic`, and `workouts` string descriptions. Missing means legacy Dynamic behaviour; never advertise support a game has not implemented. Select Steady/Dynamic inside your game via `session.training.setEffort(...)`, then use existing `setActivity` for menu/play transitions. `session.training.supported` detects older hosts; `current` and `subscribe` provide the complete workout plan and authoritative live progress. Games must not create a training clock or end the platform ride on exit. The default workout overlay and coordinated pause controls are deferred.

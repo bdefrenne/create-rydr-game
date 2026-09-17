@@ -351,3 +351,7 @@ GitHub-repo box means the game is **not done**, no matter what's live.
       with the public read, and committed the migration in `../rydr-platform`. Entry URL points at the
       production deploy. (Fallback: admin added it in `/admin.html`.)
 - [ ] **`SETUP.md` deleted** from the new game folder.
+
+### Training experience descriptions
+
+Set `rydr.training` in package.json and the registry admin Training JSON field to the experiences your game actually supports, for example `{ "steady": "Explore while keeping your effort steady", "dynamic": "Vary effort with the action", "workouts": "Play along with the platform workout" }`. All fields are optional. The dev shell forwards this metadata in solo mode. Choose the trainer preference inside the game using `session.training.setEffort`; continue sending menu/playing activity. Workout timing and targets are platform-owned. Requires the SDK release containing PLAT-1623; use the sibling-source alias for local development before publication.

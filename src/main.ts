@@ -10,12 +10,9 @@ async function boot(): Promise<void> {
   const session = await connectToPlatform({ gameId: "__SLUG__" });
   session.ready();
 
-  // Trainer resistance: tell the shell when the rider is racing vs navigating your menus, so it can
-  // ease resistance (~35%) on menus and hold FULL resistance in play. You ALWAYS boot into your own
-  // menus, so declare that now — then flip to "playing" when your gameplay loop actually starts
-  // (e.g. `session.setActivity("playing")` on race start) and back to "menu" on results/pause. That's
-  // the whole contract: the shell auto-resets you to the eased state on pause/exit/crash, so you only
-  // ever toggle the two. (Menu is the default if you never call it — a game that forgets stays eased.)
+  // Trainer preference and activity are separate. Choose inside your game's menu.
+  // Steady keeps base ERG; Dynamic leaves it only during play. Active workouts retain priority.
+  session.training.setEffort("dynamic");
   session.setActivity("menu");
 
   // --- Demo: show the live power the shell bridges from the trainer/slider. ---
@@ -106,6 +103,14 @@ async function boot(): Promise<void> {
   //     session.onIdentityChange((id) => { ftp = id.ftp; });    // re-tuned mid-ride → apply live
   //   Scale your difficulty off `ftp` (e.g. target watts = ftp * intensity). If you only read it
   //   once at init, the rider's mid-ride change won't take effect until the next launch.
+  // session.identity.accessTier → what content this rider is entitled to: "free" | "beta" |
+  //   "all_access". Read it with the SDK's tierAtLeast(), NEVER by comparing the string — a bare
+  //   `=== "beta"` locks all_access riders out of content they're entitled to:
+  //     import { tierAtLeast } from "@rydr/game-sdk";
+  //     if (tierAtLeast(session.identity.accessTier, "all_access")) showWorkInProgressMode();
+  //   Gate on "all_access" to hide a mode that isn't finished (a dozen accounts hold it, so beta
+  //   testers never see it); gate on "beta" for the eventual free/paid line. The shell knows
+  //   nothing about your tracks or levels — which ones are free is your call, not the registry's.
   // session.setActivity("playing" | "menu") → declare racing vs any non-racing screen so the shell
   //   holds FULL resistance in play and EASES it (~35%) on menus (see the active call after ready()
   //   above). Default is "menu"; the shell resets you to it on pause/exit/crash — you only toggle.
@@ -241,3 +246,9 @@ async function boot(): Promise<void> {
 }
 
 void boot();
+
+// Training contract (PLAT-1623): after connecting, choose the experience preference with
+// session.training.setEffort("steady" | "dynamic"). Keep session.setActivity("menu" | "playing")
+// accurate: menus restore base ERG, while active workouts retain their prescribed target.
+// Subscribe to session.training for the full workout timeline and current position. Never run
+// another workout clock or derive gameplay bonuses from the target: use actual hardware watts.
