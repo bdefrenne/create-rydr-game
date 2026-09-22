@@ -36,7 +36,7 @@ speed, the turret's fire rate…). **If your game's main mechanic isn't driven b
 - **Stream rate is yours to cap.** The shell streams at the trainer's native rate by default; call
   `session.setHardwareRate(hz)` to cap it (anti-aliased — a ceiling, never an upsampler), or
   `session.setHardwareRate(null)` for no limit. Callable any time.
-- **Support the chosen experience.** Steady keeps base ERG; Dynamic releases it during gameplay. Structured workouts are selected and executed by the platform. Read the full plan and live position through `session.training`; games adapt content without owning a workout clock or ERG target. Actual watts always drive gameplay bonuses, even above a prescribed target.
+- **Support the experience the RIDER chose.** They pick an intensity and whether it has a BAND, in the shell (PLAT-1661); your game reads that and adapts. Steady means no band (`minWatts === maxWatts === targetWatts`), so keep your demands flat; Dynamic means a band around the target that you are free to move within. It says nothing about the trainer: ERG is held only if a game asks (`setDemand`), so a game where the player simply reacts to the screen never asks, is never held, and pushing harder always produces more watts. Structured workouts are selected and executed by the platform. Read the choice, the full plan and live position through `session.training`; games adapt content without owning a workout clock or ERG target. Actual watts always drive gameplay bonuses, even above a prescribed target.
 - **The loop: SEE → REACT → PUSH → SEE.** The player sees a threat, pushes, and immediately sees
   the result. Keep current effort visible as *feedback* (a power bar, position, fire rate) —
   feedback is fine; *instructions* are not.
@@ -314,8 +314,100 @@ If anything about the API is unclear, open those — never guess.
 
 ## Platform-owned training (PLAT-1623)
 
-Describe supported experiences in `rydr.training` and the registry's `training` object: optional `steady`, `dynamic`, and `workouts` string descriptions. Missing means legacy Dynamic behaviour; never advertise support a game has not implemented. Select Steady/Dynamic inside your game via `session.training.setEffort(...)`, then use existing `setActivity` for menu/play transitions. `session.training.supported` detects older hosts; `current` and `subscribe` provide the complete workout plan and authoritative live progress. Games must not create a training clock or end the platform ride on exit. The default workout overlay and coordinated pause controls are deferred.
+Describe supported experiences in `rydr.training` and the registry's `training` object: optional `steady`, `dynamic`, and `workouts` string descriptions. Missing means legacy Dynamic behaviour; never advertise support a game has not implemented. **Steady/Dynamic is the rider's choice, not the game's, and it means "is there a band"** (PLAT-1661): read `session.training.current.intensity` (`minWatts`/`maxWatts` collapse to the target in steady) and `subscribe()` for changes, and use existing `setActivity` for menu/play transitions. `setDemand(level)` asks the trainer to hold a point in that band; `releaseTrainer()` stops asking. **Since PLAT-1663 a release hands the trainer back to the rider's own ERG target, not to nothing** — that target is a standing hold the rider set, and a game only ever borrows the trainer from it. So releasing is no longer a way to get the rider above `maxWatts`: if a sprint needs headroom, ask for it with `setDemand`. `session.training.setEffort(...)` still exists because the SDK type declares it, but the host ignores it — a guest cannot put the trainer somewhere the rider did not ask for. `session.training.supported` detects older hosts; `current` and `subscribe` provide the complete workout plan and authoritative live progress. Games must not create a training clock or end the platform ride on exit. The default workout overlay and coordinated pause controls are deferred.
 
-### SDK 8.22.0 clarification
+### Where the numbers come from
 
-The historical menu-easing and game-owned ERG guidance above is superseded: report menu/playing with `session.setActivity`, choose Steady/Dynamic with `session.training.setEffort`, and consume workout snapshots through `session.training`. Training-aware games never command their own ERG targets. Menus restore base ERG; active workouts retain priority and keep running. Legacy `identity.ftp` remains game difficulty; workout FTP comes from workout progress.
+The historical menu-easing and game-owned ERG guidance above is superseded: report menu/playing with `session.setActivity`, and consume the rider's effort choice and workout snapshots through `session.training`. Training-aware games never command their own ERG targets. Menus restore base ERG; active workouts retain priority and keep running.
+
+Two different numbers, easy to confuse:
+
+- **`identity.ftp`** is the rider's OWN functional threshold power in watts, as they stated it in their profile. It is no longer a difficulty they picked (that dial was deleted in PLAT-1628) — express `%FTP` demands against it exactly as before, only the meaning changed.
+- **`training.baseTargetWatts`** is the intensity they chose for THIS ride, already scaled from that FTP. It is what Steady holds them at and what Dynamic swings them around, so it — not raw watts — is what your demands should be relative to. It is the same number as `training.intensity.targetWatts`; prefer that one.
+- **`training.ergTargetWatts`** is a DIFFERENT number and not yours to aim at: what the trainer is physically holding right now, which since PLAT-1663 is the rider's own ERG target whenever your game is not asking. Read it to report, never to size a challenge.
+
+Workout FTP still comes from workout progress and is separate from both.
+
+## Sequence stages — being part of a mash up (PLAT-1629)
+
+A **sequence** is an authored run of several games back to back: a short race, then a song, then a
+survival wave. The platform owns the order and the rider's progress through it. Your game is handed
+**one stage** and told nothing else — not what came before, not what comes next, not how many stages
+there are. That is what lets a mash up be re-authored without touching a single game.
+
+Optional. Implement it and your game can appear in a sequence; ignore it and nothing changes.
+
+```ts
+session.onStage(async (stage) => {
+  if (stage.offeringId !== "one-song") {
+    return session.finishStage("unavailable", { reason: "This game has no such mode" });
+  }
+  const { songId, difficulty } = stage.settings ?? {};
+  const result = await playSong(String(songId), String(difficulty));
+  session.finishStage(result.won ? "completed" : "failed", { runIds: [result.runId] });
+});
+```
+
+**You define the mode vocabulary.** `offeringId` is your name for something directly launchable
+("short-race", "one-song", "five-minute-survival"). The platform stores it, hands it back and never
+parses it, and the same goes for `settings`. You validate both — you own your content, and the
+platform cannot know a track was removed or a song is not unlocked for this rider.
+
+**Three outcomes, and the difference is load-bearing.** `"completed"` and `"failed"` are both real
+ENDINGS: the rider played the thing and it resolved, so the sequence moves on either way.
+`"unavailable"` means NOTHING was played — an unknown `offeringId`, settings this build rejects,
+missing content — and the platform shows an error the rider can act on rather than marching them
+past a stage they never saw. Never report `"failed"` for a launch problem or `"unavailable"` for a
+lost race.
+
+**Registering the handler is how you declare support.** The SDK acks the shell for you as soon as
+your handler runs, and a game with no handler is auto-reported `"unavailable"`, so forgetting to
+answer can never strand a mash up. There is no capability to request and nothing to add to the
+registry.
+
+**Reach a `finishStage` on every path.** Nothing else ends a stage. Not `saveRun`, not a route
+change, not `setActivity("menu")` — a game legitimately does all three mid-stage, which is exactly
+why none of them can mean "advance". A handler that throws is reported `"unavailable"` on your
+behalf, but a sentence you wrote is a better explanation for the rider than an error string.
+
+**You are also launched at your own deep link.** The shell navigates you there as well as sending
+the stage, so trust `stage` over the URL: the message carries what a URL cannot express. It is also
+why a game built before this contract still reaches roughly the right screen in a sequence, and why
+the URL alone is never enough to call a game sequence-compatible.
+
+**Only the rider leaves a sequence.** `requestExit()` is refused while one is running — the shell's
+platform menu owns *Skip stage* and *Stop the sequence* — so do not build your own way out, and
+never call `finishStage` just to escape one. The ride recording spans the whole sequence and keeps
+going afterwards; finishing a sequence is not finishing a ride, and none of that is yours to end.
+
+`session.stage` is the live spec or `null`. Outside a sequence `onStage` never fires and
+`finishStage` is a no-op, so no gameplay code needs to branch on whether one is running.
+
+## Group workouts — being a block of a shared session (PLAT-1667)
+
+A room of riders rides **one workout, together, on one clock**, and the host cycles through a list of
+games from the platform MENU. Your game is one entry in that rotation: when the host reaches it you
+own the screen, until they move on.
+
+**The full contract is `training/README.md` in `@rydr/game-sdk`**, which ships with the package. Read
+it before adapting a game. The four things that catch people out:
+
+- **You do not own the clock, the power, or when your turn ends.** Position comes from
+  `session.training`; the workout prescribes watts and the platform holds the trainer there (do not
+  call `setDemand` — a workout outranks it); and the host decides when you come off, with no warning.
+- **Position is not monotonic.** The host can skip and restart segments, so `position` jumps forward
+  AND backward at any moment. Derive state from it rather than accumulating it, and never replay cues
+  you already fired because time moved back over them.
+- **You can be mounted at ANY position**, mid-effort included — second 2347, fourteen seconds into a
+  30-second effort. Render the truth on your FIRST snapshot; never animate in from zero.
+- **`participants` includes bots, and you must not care.** A rider alone gets a bot pacer, so there is
+  never an empty room and your game needs no "riding alone" branch. `isBot` is for wording and
+  leaderboards, never for geometry. Rank by `compliance`, never by `power`: everyone rides the same
+  %FTP at different watts, so ranking by watts builds a heaviest-rider-wins leaderboard.
+
+A game suited to a workout block takes its input from the **gamepad, not the pedals** — aim, steer,
+time a press, hit a note. If your controller *is* the pedals, a workout block has already taken it:
+everyone is held at the same target, so everyone performs identically.
+
+Declare support in the registry's `training.workouts` before a host can put you in a rotation. The
+lobby lists only games that declare it.
