@@ -79,13 +79,16 @@ Hard rules — keep to these:
 - **The platform records the activity + FIT automatically — you do nothing.** Every
   session is recorded by the shell from its own hardware stream. There is **no** activity
   API on the SDK; never build your own FIT encoder or write activities to a backend.
-- **Highlights are opt-in (and the only thing the shell can't capture for you).** Because
-  your game runs cross-origin, the shell can't read your canvas — *you* grab the pixels and
-  call `session.captureMoment(canvasOrBlob, { label })` (a still) or `session.captureClip(blob,
-  { label })` (a short video, e.g. `canvas.captureStream()` → `MediaRecorder`). The shell
-  uploads them and attaches them to the session; the player shares them from the results
-  screen. Keep a short rolling clip buffer, cap clips ~3–6s, prefer `video/mp4`, and for a
-  WebGL still use `preserveDrawingBuffer: true` (or capture in the same frame) or it reads blank.
+- **Highlights are opt-in: screenshot the moments worth keeping.** Call
+  `session.captureScreen({ label, fallback: canvas })` when the moment is good (the podium, an
+  overtake), right after a render or inside `requestAnimationFrame` (so a WebGL canvas isn't read
+  back blank), and keep the scene up until it resolves. It never rejects —
+  ignore a `{ ok: false, reason }`. The shot is attached to the rider's current activity. On a
+  shell with `session.canCaptureScreen` (desktop app) the shell grabs the frame itself, HTML over
+  the canvas included; elsewhere the SDK pictures your `fallback` canvas on a worker. Don't add
+  `preserveDrawingBuffer: true` for it. For an image or clip you made yourself:
+  `session.captureMoment(blob, { label })` / `session.captureClip(blob, { label })` (a short video,
+  e.g. `canvas.captureStream()` → `MediaRecorder`; cap ~3–6s, prefer `video/mp4`).
 - **Immersive play:** the shell navbar is always hidden while a game runs (no game control
   needed). `session.setActivity("playing"|"menu")` marks active gameplay vs menu screens (and
   drives the shell's resistance easing); the shell's in-game platform menu (Exit + hardware) is summoned by the MENU button / M key, not a persistent button.

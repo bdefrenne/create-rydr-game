@@ -217,16 +217,26 @@ async function boot(): Promise<void> {
   // There is NO activity/FIT API. The platform records every session automatically
   // from its own hardware stream — your game does nothing for recording.
   //
-  // --- Highlights (optional) — capture shareable moments from your own canvas ---
-  // The shell attaches these to the recorded session; the player sees them on the post-game
-  // results screen + in profile history, and can share them (Strava/IG/…) from there.
-  //   await session.captureMoment(myCanvas, { label: "finish" });   // a still (Blob/canvas/dataURL)
-  //   await session.captureClip(clipBlob,  { label: "sprint" });    // a short video clip
+  // --- Highlights (optional) — screenshot the moments worth keeping (PLAT-1842) ---
+  // Call it when the moment is good — the podium, an overtake — not on a timer. The shot is
+  // attached to the rider's current activity; they see it in its Highlights and can share it.
+  //   requestAnimationFrame(() => {                    // runs right after your loop's render
+  //     void session.captureScreen({ label: "Podium", fallback: myCanvas });
+  //   });
+  // It never rejects: `{ ok: true, by }` or `{ ok: false, reason }` (unsupported / no-activity /
+  // rate-limited / obscured / failed) — ignore a refusal, don't show it. Keep the scene on screen
+  // until it resolves. When `session.canCaptureScreen` (desktop app) the SHELL grabs the frame —
+  // HTML over your canvas included — for one message; elsewhere the SDK pictures `fallback`, your
+  // canvas, encoding + uploading on a worker. Called after a render and before the frame is shown
+  // (right after render(), or in requestAnimationFrame as above), a WebGL canvas needs NO
+  // `preserveDrawingBuffer` (which costs every frame).
+  // To upload an image or clip you made yourself:
+  //   await session.captureMoment(myBlob, { label: "finish" });   // a still (Blob/canvas/dataURL)
+  //   await session.captureClip(clipBlob,  { label: "sprint" });  // a short video clip
   // captureClip wants a finished video Blob — typically canvas.captureStream() → MediaRecorder.
   // Tips: keep a short rolling MediaRecorder buffer so a clip can include the seconds BEFORE the
   // moment; cap it ~3–6s and downscale to keep uploads small; prefer video/mp4 where supported
-  // (Safari) — webm (Chrome) shares poorly to some targets. For a WebGL still, create the context
-  // with `preserveDrawingBuffer: true` or capture in the same frame as a render, or it reads blank.
+  // (Safari) — webm (Chrome) shares poorly to some targets.
   //
   // --- Conversations & voice-over (optional) — spoken NPC dialogue in French, generated once ---
   // Author conversations IN CODE at module scope in `src/conversations.ts` (already scaffolded), then
