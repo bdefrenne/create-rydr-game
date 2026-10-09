@@ -140,6 +140,9 @@ async function boot(): Promise<void> {
   // `saveRun({ scores: [{ boardId: "<id>", value }] })` submits to it (one run's name+tags label every
   // board it submits to). For a parameterized board, select the family member with `key`:
   // `saveRun({ scores: [{ boardId: "lap", value, key: trackId }] })`.
+  // Put the run's MAIN score FIRST. Every score is ranked, but only the first one can become a feed
+  // card and the "someone beat your record" push + email (PLAT-1879). Checkpoints, rollups and side
+  // stats go after it, or riders get told about records they never lost.
   //
   // --- 3D world (optional) — render a shared platform environment in three.js ---
   // Import from `@rydr/game-sdk/three` (needs `three`). `loadWorld` fetches + decodes + caches the

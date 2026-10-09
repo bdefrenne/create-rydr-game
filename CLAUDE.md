@@ -205,6 +205,11 @@ Hard rules — keep to these:
   registry row is upserted (step 8) so a run's `saveRun({ scores: [{ boardId, value }] })` ranks with
   the right sort/aggregate (an unregistered board still records, just defaulted to `desc`/`best`).
   Keep `rydr.boards` in the repo as the canonical record. See `SETUP.md`.
+- **The first score a run sends is its MAIN score.** Every score in `saveRun({ scores })` is ranked,
+  but only the FIRST can become a community feed card, and with it the push and the email that tell
+  podium riders someone passed them (PLAT-1879). Send the headline result first (the song score, the
+  race result); checkpoints, rollups and side stats (kills, splits) after it. A checkpoint sent first
+  would announce "Alice beat your score" about numbers no rider can find.
 - **Shipping is mandatory, not optional.** Creating a game isn't done until **all three** ship
   deliverables exist, in order: (1) **pushed to a GitHub repo** (`rydr-game-<slug>`, created via the
   `gh` CLI, **under `bdefrenne`** so it sits with every other RYDR game) → (2) **deployed** to its
