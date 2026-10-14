@@ -5,14 +5,35 @@ import { connectToPlatform } from "@rydr/game-sdk";
  * Replace the demo with your game — read hardware from `session.hardware`, identity from
  * `session.identity`, and use the lifecycle hooks below. See CLAUDE.md for the conventions.
  */
+/** The power the rider chose for this ride. Everything your game demands should scale to it. */
+let intensityTarget = 0;
+
 async function boot(): Promise<void> {
   // Games get FULL hardware access — there's nothing to choose. Just pass your gameId.
   const session = await connectToPlatform({ gameId: "__SLUG__" });
   session.ready();
 
-  // Trainer preference and activity are separate. Choose inside your game's menu.
-  // Steady keeps base ERG; Dynamic leaves it only during play. Active workouts retain priority.
-  session.training.setEffort("dynamic");
+  // The RIDER chooses how hard to ride and whether to hold it Steady or ride it Dynamic, in the
+  // shell (PLAT-1661). Your game READS that and builds a different experience around it.
+  //
+  //   steady  — NO band. `intensity.minWatts === maxWatts === targetWatts`. Keep your demands flat.
+  //   dynamic — a band around the target, and it is yours to move within.
+  //
+  // It says nothing about HOW the trainer is ridden: that is the rider's pick, per game (PLAT-1846).
+  // A rider who rides your game in ERG is held at `intensity.targetWatts`; one who picks Gears or
+  // Fixed (L1 + R1, remembered for your game) pedals freely. If your game has no target of its own
+  // (the player just reacts to the screen), never call setDemand: a rider who wants pushing harder
+  // to produce more watts picks Gears for it. Honour the window either way and steady/dynamic falls
+  // out for free.
+  //
+  // Express demands against `intensity.targetWatts`, never in watts of your own: it is the one
+  // number that means the same effort to a 150 W beginner and a 415 W pro, so one authored
+  // challenge lands fairly on every body.
+  session.training.subscribe((training) => {
+    document.body.dataset["effort"] = training.effort; // "steady" | "dynamic"
+    // Scale whatever your game asks of the rider against this, rather than naming watts yourself.
+    intensityTarget = training.intensity?.targetWatts ?? training.baseTargetWatts;
+  });
   session.setActivity("menu");
 
   // --- Demo: show the live power the shell bridges from the trainer/slider. ---
@@ -20,7 +41,11 @@ async function boot(): Promise<void> {
   // tune it with `rydr.powerSmoothing` in package.json (seconds), or omit for the 0.06s default.
   const powerEl = document.getElementById("power")!;
   session.hardware.subscribe((hw) => {
-    powerEl.textContent = String(Math.round(hw.power));
+    // Shown as a SHARE of what the rider chose, not as bare watts, because that is the number your
+    // game should actually reason about: 1.0 means they are giving exactly what they signed up for,
+    // and it means the same thing for a 150 W beginner and a 415 W pro.
+    const share = intensityTarget > 0 ? hw.power / intensityTarget : 0;
+    powerEl.textContent = `${Math.round(hw.power)} W (${share.toFixed(2)}x)`;
   });
 
   // By default the shell streams hardware at the trainer's native rate (~10 Hz, varies by trainer).
@@ -31,9 +56,9 @@ async function boot(): Promise<void> {
   // --- Controller input (canonical, source-agnostic) ---
   // session.onButton((e) => {...})   → button edges, e.edge down/up. e.name is positional:
   //   DIAMOND_UP/DIAMOND_DOWN/DIAMOND_LEFT/DIAMOND_RIGHT (face diamond), UP/DOWN/LEFT/RIGHT (d-pad + left
-  //   stick), RUP/RDOWN/RLEFT/RRIGHT (right stick), LT/RT (trigger clicks), LSTICK_PRESS/RSTICK_PRESS,
-  //   OPTIONS (the game's OWN menu/options button — distinct from the platform's own overlay menu,
-  //   which never reaches a game).
+  //   stick), RUP/RDOWN/RLEFT/RRIGHT (right stick), LT/RT (trigger clicks), LSTICK_PRESS/RSTICK_PRESS.
+  //   OPTIONS never reaches a game on RYDR: like MENU it opens the platform menu, where your
+  //   mountOptionMenu rows (below) are drawn. Don't bind it.
   //   Default: ONE `down` per press (held-button re-emits swallowed) — right for menus.
   //   Hold-to-repeat: session.onButton((e) => {...}, { repeats: true }) then branch on e.repeat.
   // session.isDown("DIAMOND_DOWN")   → poll a held button in your game loop
@@ -70,7 +95,7 @@ async function boot(): Promise<void> {
   // (Only fully in-canvas/WebGL menus — no DOM elements — skip this and read session.onButton directly.)
   //
   // --- The in-game OPTION menu — use the shared one, don't build your own ---
-  // Every game needs "the rider pressed OPTIONS mid-play": the SDK ships that overlay, so all games
+  // Every game needs "the rider opened the menu mid-play": the SDK ships that menu, so all games
   // share one look, animation and behaviour. Your game's name goes big at the top IN YOUR FONT (it
   // inherits the page's), `Resume` is free, and you add the rest:
   //   import { mountOptionMenu } from "@rydr/game-sdk/ui";
@@ -91,8 +116,12 @@ async function boot(): Promise<void> {
   // IT CANNOT PAUSE YOUR GAME — no library can; freeze your own loop/timers in onOpen/onClose. What it
   // does guarantee is that a game which keeps running can't be DRIVEN: it takes the controller over
   // while up (session.grabInput), so your onButton handlers go quiet, isDown/stick read resting, and
-  // anything held is released first. It also declares setActivity("menu") while up and "playing" on
-  // close, so trainer resistance eases on the pause screen for free.
+  // anything held is released first. It does NOT call setActivity and never touches the trainer: the
+  // rider keeps riding what they were riding (menus never ease resistance, PLAT-1623).
+  // ON RYDR THERE IS ONE MENU (PLAT-1795): the shell draws these rows inside its own platform menu,
+  // under Resume, instead of this overlay. MENU and OPTIONS (the shell's, not yours) open it, its opening/closing
+  // runs canOpen/onOpen/onClose, and a press runs your row's own callback. Same code; only the
+  // overlay (an older shell) draws shortcut, hint and your font, so make each label stand alone.
   //
   // --- Lifecycle hooks you'll likely use (uncomment as needed) ---
   // session.identity.ftp / .weightKg / .displayName  → scoped, PII-free player data
@@ -118,6 +147,67 @@ async function boot(): Promise<void> {
   // NOTE: there's no "menu chrome" call — the shell's platform menu is summoned on demand (MENU
   //   button / M key), and the trainerless power bar stays visible everywhere so a keyboard rider
   //   can always pedal. Only an editor hides it, with session.setPowerBar(false).
+  // session.setRideHud({ live: "compact", workout: false })
+  //   → the shell's ride HUD over your game: the live card "full" | "compact" (its readings row
+  //     only) | "hidden", and the workout's rep panel / details on or off. Each call is the whole
+  //     view; setRideHud() with nothing shows everything again. Omit it and the rider gets it all.
+  // session.setRideHud({ menu: "compact", column: document.querySelector(".menu-column") })
+  //   → on your MENUS (while you report setActivity("menu")) the HUD becomes the riding home's bar
+  //     across the top: "full" (with its chart) or "compact" (one flat line), lined up with your menu
+  //     column (an element the SDK follows as it resizes, or { x, width }). "playing" flies it back
+  //     to the corner. Only ask if you report your activity on every screen; lay the menu out under
+  //     it with var(--rydr-hud-bottom, 0px).
+  // session.setRideHud({ live: "compact", lowRateWarning: true })
+  //   → if your game judges power as it happens, ask the shell to warn a rider whose trainer is too
+  //     slow for it (about one reading per second): it measures the rate and, only when low, shows
+  //     "Slow trainer" on the HUD and explains it in the platform menu. You draw nothing. Per screen:
+  //     on for gameplay, off on your menus.
+  // session.rideHudArea / session.onRideHudArea((area) => layout(area))
+  //   → WHERE that HUD is, measured by the shell, in your own CSS pixels: `rects` (one box per
+  //     block on screen) and `bounds` (the box around them; null when nothing is drawn). It changes
+  //     during a ride (a workout adds panels, setRideHud removes some, a resize), so follow it and
+  //     keep that space free. From CSS: var(--rydr-hud-bottom, 0px), also -left/-top/-right/-width/
+  //     -height on :root. An editor's setPowerBar(false) takes the HUD away too.
+  //
+  // --- Sequence stages (optional) — let the platform put your game in a MASH UP ---
+  // A sequence is an authored run of several games back to back: a short race, then a song, then a
+  // survival wave. The PLATFORM owns the order; you are handed one stage and told nothing else — not
+  // what came before, not what comes next, not that a sequence exists beyond your own stage.
+  // Implement it and your game can appear in one; skip it and nothing changes.
+  // TWO HALVES, and you need both: DECLARE your launchable modes in `rydr.offerings` in
+  // package.json (see SETUP.md — that's what a sequence is authored against), then implement
+  // `onStage` below to play one. Declaring without implementing means every stage that names you
+  // reports "unavailable"; implementing without declaring means no sequence can name you at all.
+  //   session.onStage(async (stage) => {
+  //     // `stage.offeringId` is YOUR name for a launchable mode. You define the vocabulary; the
+  //     // platform stores it and hands it back, and never parses it.
+  //     if (stage.offeringId !== "one-song") {
+  //       return session.finishStage("unavailable", { reason: "This game has no such mode" });
+  //     }
+  //     const { songId, difficulty } = stage.settings ?? {};   // opaque to the platform; YOU validate
+  //     const result = await playSong(String(songId), String(difficulty));
+  //     session.finishStage(result.won ? "completed" : "failed", { runIds: [result.runId] });
+  //   });
+  // Three outcomes, and the difference matters: "completed" and "failed" are both real ENDINGS (the
+  // rider played it; the sequence moves on either way), while "unavailable" means NOTHING was played
+  // — an unknown offeringId, settings this build rejects, missing content — so the platform shows an
+  // error the rider can act on instead of marching them past a stage they never saw.
+  // Four things to know:
+  //  1. **Registering the handler is how you DECLARE you support sequences.** The SDK acks the shell
+  //     for you, and a game with NO handler is auto-reported "unavailable" — so you can never strand
+  //     a mash up by forgetting to answer. Report `unavailable` yourself only for a mode you don't have.
+  //  2. **You are ALSO launched at your own deep link** (the platform navigates you there as well), so
+  //     trust `stage` over the URL. The message carries what a URL cannot express: Guitar Hero's
+  //     pacing targets have no path segment, and never will.
+  //  3. **Reach a `finishStage` on EVERY path, including the ones where you give up.** Nothing else
+  //     ends a stage — not `saveRun`, not a route change, not `setActivity("menu")`, because a game
+  //     legitimately does all three mid-stage. A handler that throws is reported "unavailable" for
+  //     you, but your own sentence is a better explanation for the rider than an error message.
+  //  4. **Only the RIDER leaves a sequence.** Your `requestExit()` is refused while one is running
+  //     (the shell's platform menu owns Skip stage and Stop sequence), so don't build your own
+  //     "back to the mash up" — and don't call `finishStage` just to get out of one.
+  // `session.stage` is the current spec or `null`, readable any time; outside a sequence `onStage`
+  // never fires and `finishStage` is a no-op, so none of your gameplay code needs to branch on it.
   //
   // --- Replay route (REQUIRED if you save replays) ---
   // A replay is only watchable inside the game, so the platform deep-links finished runs to
@@ -260,8 +350,40 @@ async function boot(): Promise<void> {
 
 void boot();
 
-// Training contract (PLAT-1623): after connecting, choose the experience preference with
-// session.training.setEffort("steady" | "dynamic"). Keep session.setActivity("menu" | "playing")
-// accurate: menus restore base ERG, while active workouts retain their prescribed target.
-// Subscribe to session.training for the full workout timeline and current position. Never run
-// another workout clock or derive gameplay bonuses from the target: use actual hardware watts.
+// Training contract (PLAT-1623, PLAT-1661, PLAT-1925).
+//
+// READ: `session.training.current` + `.subscribe()`.
+//   · `effort` — "steady" | "dynamic". The RIDER's choice, not yours. Your own setEffort() is
+//     ignored: a guest must not put the trainer somewhere the rider did not ask for.
+//   · `intensity` — { group, targetWatts, minWatts, maxWatts, ftp }. Scale your demands to
+//     `targetWatts` rather than naming watts yourself.
+//   · `ergTargetWatts` — what the trainer is ACTUALLY holding, which is not always what you asked
+//     for. No ERG-capable trainer, the rider riding your game on Gears or Fixed, and a workout
+//     outranking you all look identical from in here. Render from this, not from your own request.
+//
+// WRITE (optional): `session.training.setDemand(level)` moves the trainer to a point in the
+// rider's band. It only moves it while the rider rides your game in ERG (PLAT-1846), where the
+// trainer is otherwise held at `targetWatts`.
+//   · 0 is `minWatts`, 1 is `maxWatts`. Normalized, not watts, so one authored curve fits every
+//     rider and survives a retune of the band. In steady those are the same number.
+//   · `session.training.releaseTrainer()` stops ASKING, which returns the trainer to the rider's
+//     game target (in ERG) rather than to their legs. So a release is no route above `maxWatts`:
+//     if a SPRINT needs headroom, ask for it with setDemand.
+//   · Call it as often as you like. The platform caps how often it writes to the trainer.
+//   · `session.training.setGameTarget(watts | null)` (PLAT-1849, SDK 11.2+) is ONLY for a game
+//     whose difficulty is a power the rider picks in-game: the shell rebuilds the band around it,
+//     for this run only. See the SDK's training README.
+//
+// SHOW THE GAME TARGET BEFORE EACH RUN (PLAT-1925, protocol 52). Every game does it: the rider
+// chooses how hard to ride IN the game, on the screen they see before a run (a start card, a lobby),
+// and the choice is their saved GAME TARGET, shared by every game (280 W here is 280 W in the next).
+//   import { mountGameTargetPicker } from "@rydr/game-sdk/ui";
+//   const picker = mountGameTargetPicker(preRunPanel, { session });
+//   // while that row has focus: if (picker.handle(name)) return;   (LEFT / RIGHT, 5 W a press)
+//   // when the screen closes: picker.dispose();
+// The shell owns the ladder; the picker only draws it. A game whose difficulty is its OWN watts for a
+// run (setGameTarget above) shows its own control for those runs instead.
+//
+// Keep session.setActivity("menu" | "playing") accurate: "menu" puts the rider on their MENU
+// setting (the Menu ERG by default), "playing" on the one they picked for your game.
+// Never run another workout clock or derive gameplay bonuses from the target: use actual watts.

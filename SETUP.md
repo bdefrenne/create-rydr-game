@@ -85,6 +85,25 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
   appending it to your `key` on both submit and read, symmetrically. Pass only your own dimension
   (e.g. a track id) as `key`; in-game you always read back the board matching the current input,
   and the platform `/leaderboards` hub shows the trainer boards.
+- **Sequence offerings (only if your game can be part of a mash up).** `rydr.offerings` ships empty
+  (`[]`) — a game that is only ever played on its own leaves it so. A **sequence** is an authored run
+  of several games back to back, and an offering is one **directly launchable** mode of yours: this
+  preset, go, with no screen the rider then has to pick something on. Declare one per mode, then
+  implement `session.onStage` to play it (see the SDK README's "Sequence stages"):
+  ```jsonc
+  "offerings": [
+    { "id": "one-song", "label": "One song", "ends": "natural",
+      "description": "A single track at the chosen difficulty, about 4 minutes" }
+  ]
+  ```
+  `ends` is the one field a sequence cannot work without: `"natural"` means gameplay reaches its own
+  end and you report it unprompted (a finish line, the end of a song), `"open"` means it runs until
+  something stops it (endless survival) so the rider's Skip is the only way on. `id` is what a stage
+  will name, and it is stable — renaming it breaks every sequence that used it, exactly like a
+  `boardId`. Like boards, an offering only reaches the platform when you **register** (step 8), and
+  declaring is a promise rather than an implementation: a stage naming an id your deployed build
+  doesn't handle reports `"unavailable"` and the rider gets an error they can act on.
+
 - **Overlay mode (only if your game draws boxes over the desktop).** `rydr.overlay` is absent by
   default, which is right for almost every game. Set `"overlay": true` **only once you have
   actually built the boxes** — the flag offers an overlay, it does not create one. It lets a rider
@@ -112,6 +131,16 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
   The registry row carries it as `manifest.overlay`; `/admin.html` has a checkbox for it. In solo
   dev the `rydr-dev-shell` bin forwards `rydr.overlay` for you, so `npm run dev` sees it without a
   registry round-trip.
+- **Playable with (the controllers your game works with).** The row's `inputs` lists them: `pad`,
+  `zwiftClickOrPlay` (a Click and a Play press the same), `zwiftRide`, `phone`, `touch` (a tablet
+  or phone with no controller, on the screen's touch bar), `keyboard`
+  (`/admin.html`: **Playable with**, one box per controller). Left alone it means everything but the keyboard. A rider none of whose controllers is ticked sees your game dimmed, "Not for this
+  controller", or "Controller required" on the keyboard. Untick a controller your game cannot be
+  played with: a Zwift controller has no analog stick (its arrows are the stick pushed all the way)
+  and its Y opens the platform menu, so a game that needs `DIAMOND_UP` or a real stick is not for one.
+  Tick the keyboard only if the game is fine with arrows, Space / Enter, Backspace and Esc, with no
+  right stick and no triggers. Solo dev (`npm run dev`) is never locked.
+
 - **Multiplayer (only if you call `session.joinRoom`).** Realtime rooms are the shell's **grant**,
   not your declaration: it opens and owns the socket for you (which is what makes a rival's identity
   and wattage unforgeable), so the registry decides whether it will. `/admin.html` has a
@@ -150,8 +179,8 @@ filter) over raw `power`; tune it per game with `rydr.powerSmoothing` (seconds) 
 Read controller buttons with `session.onButton`/`session.isDown` (canonical, source-agnostic:
 the positional face diamond `DIAMOND_UP`/`DIAMOND_DOWN`/`DIAMOND_LEFT`/`DIAMOND_RIGHT`,
 `UP`/`DOWN`/`LEFT`/`RIGHT`, right-stick `RUP`/`RDOWN`/`RLEFT`/`RRIGHT`, trigger clicks `LT`/`RT`,
-stick presses `LSTICK_PRESS`/`RSTICK_PRESS`, and `OPTIONS` (the game's OWN menu/options button —
-distinct from the platform's own overlay menu, which never reaches a game); house convention
+stick presses `LSTICK_PRESS`/`RSTICK_PRESS`; `OPTIONS` never reaches a game on RYDR, it opens the
+platform menu like MENU, where `mountOptionMenu` rows are drawn); house convention
 DIAMOND_DOWN=confirm, DIAMOND_RIGHT=back — print labels via `session.buttonLabel(name)`, never a
 hardcoded letter; an `@rydr/game-sdk/ui` keycap needs that lettering passed in too —
 `glyphSet: session.hardware.current.glyphSet` (or `press: session`), or it silently falls back to
@@ -172,8 +201,9 @@ gate it on `session.hardware.current.ergSupported` and always show the rider a t
 themselves, since a dumb trainer, the power slider and the keyboard have no ERG. The shell releases
 the control point on exit/crash, so there's nothing to clean up. **If you're not building a workout
 app, this isn't for you** — see the "power is the controller" rule: your game creates demand, it
-doesn't prescribe watts. What you MUST call is `setActivity("playing"|"menu")`: the shell eases resistance ~35% on any non-playing screen so
-riders can spin while navigating, and **a game that never reports stays eased through all gameplay**.
+doesn't prescribe watts. What you MUST call is `setActivity("playing"|"menu")`: it tells the shell whether the rider is in
+gameplay (activity context; it does not change resistance, menus never ease the trainer, PLAT-1623),
+and **a game that never reports is treated as sitting in a menu through all gameplay**.
 Use `setPowerBar(false)` to hide the shell's trainerless power bar where it doesn't belong (e.g. an
 editor or menu), `setPowerBar(true)` during play (both default to visible); the shell's in-game
 platform menu (Exit + hardware) is summoned by the MENU button / M key, never drawn as a persistent
@@ -378,6 +408,9 @@ registry row:
 
 For a **draft** instead of Live, set `"isLive": false` (→ `status: draft`): hidden from the public
 library, previewable on the shell by admins. Flip live later with another upsert migration.
+To let riders on the `playtest` access level play it before the beta, add `"playtest": true` to the
+manifest and `playtest` = `true` to the row (RLS reads the column); with `"status": "comingSoon"` the
+public sees a locked teaser while playtesters play it.
 
 **Fallback (no CLI / no platform access):** the admin UI at **`/admin.html`** (signed in as an
 admin) → **Add**, fill Slug / Title / Icon / Accent / Entry URL + each board, Live, Save.
@@ -415,4 +448,34 @@ GitHub-repo box means the game is **not done**, no matter what's live.
 
 ### Training experience descriptions
 
-Set `rydr.training` in package.json and the registry admin Training JSON field to the experiences your game actually supports, for example `{ "steady": "Explore while keeping your effort steady", "dynamic": "Vary effort with the action", "workouts": "Play along with the platform workout" }`. All fields are optional. The dev shell forwards this metadata in solo mode. Choose the trainer preference inside the game using `session.training.setEffort`; continue sending menu/playing activity. Workout timing and targets are platform-owned. Requires @rydr/game-sdk 8.22.0 or newer; use the sibling-source alias only for local SDK development.
+Set `rydr.training` in package.json and the registry admin Training JSON field to the experiences your game actually supports, for example `{ "steady": "Explore while keeping your effort steady", "dynamic": "Vary effort with the action", "workouts": "Play along with the platform workout" }`. All fields are optional. The dev shell forwards this metadata in solo mode. The rider chooses Steady or Dynamic in the shell (PLAT-1661) — read it with `session.training.current.effort` and `subscribe()`, and build a different experience around each; continue sending menu/playing activity. Workout timing and targets are platform-owned. Requires @rydr/game-sdk 8.22.0 or newer; use the sibling-source alias only for local SDK development.
+
+## Controller teaching (next SDK release)
+
+Available after the SDK release containing the RYDR GLB renderer (or during local sibling-SDK development). Use the existing spotlight with the RYDR model renderer. The SDK owns input priority and the lesson; the renderer owns physical press motion, Supernova, mint input feedback, Fine line labels and automatic framing.
+
+```ts
+import { mountControlSpotlight } from '@rydr/game-sdk/ui';
+import { createThreePadRenderer } from '@rydr/game-sdk/three';
+
+const lesson = mountControlSpotlight(host, {
+  press: session,
+  renderer: createThreePadRenderer,
+  size: 'xl', // 580px max; '2xl' is 700px. Shrinks to the host width.
+  mode: 'still',
+  watch: true,
+  steps: [{ label: 'Move', combo: ['LSTICK'] }],
+});
+// Later: lesson.setSteps([{ label: 'Equip', combo: ['DIAMOND_DOWN'] }]);
+// On screen teardown: lesson.dispose();
+```
+
+Supported models: `playstation`, `xbox`, `joycon`. Pass `brand: 'joycon'` when known; the session's Nintendo glyph family does not distinguish a Joy-Con pair from a Switch Pro. No misleading model or SVG substitution is performed. Other controllers need their own authored model before adopting this renderer.
+
+The `.glb` assets ship beside the renderer in `dist/three/controller/models` and bundlers resolve them through `new URL(..., import.meta.url)`. Custom hosting can pass a renderer factory that supplies `modelUrls` (absolute or page-relative URLs); use versioned immutable URLs with CORS enabled. The models are fetched only on mount and cached as bytes, with independent scenes per mounted view. Call `dispose()` when closing. Camera motion stops under reduced motion and rendering stops while hidden/offscreen.
+
+L1/R1 remain shell-owned controls: games may explain them, but cannot consume their button edges. The platform's `shellInputSource` supplies them for its own lessons.
+
+For a completed teaching cue, a custom `createThreePadRenderer` factory can supply `completion: true` to stop teaching motion and restore original button colors while preserving annotations. Omit `completion` for normal teaching. The game decides when the action is complete; this renderer option does not infer success from a raw button press.
+
+A false → true `completion` transition plays the packaged success cue once. Set `completionSound: false` to respect your game’s sound mute setting. Mounting already completed is silent; reset to false before another success. Browser audio playback requires an initial user interaction.

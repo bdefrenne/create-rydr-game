@@ -13,6 +13,13 @@ project → **Platform** board (`PLAT`). **If you are in a game scaffolded from
 this template** (not `create-rydr-game`), replace this line with that game's own
 board — a scaffolded game does *not* belong on Platform.
 
+**Every commit names its tasks** (PLAT-1799). When you commit, end the message with one
+`Task: <CODE>` line per task whose work is in it (e.g. `Task: RACI-317`; a commit that sweeps up
+several tasks lists them all), then link it to each with the todo MCP's `link_commit`. Stage only
+the files your own work touched, never the whole tree: another session's uncommitted work may be
+sitting beside yours. Push only when asked. A hand commit without these lines gets found and linked
+at the next board cleanup.
+
 ## The one rule: power is the controller
 
 A RYDR game is played by **pedaling**. The rider's **power output (watts) is the primary
@@ -36,7 +43,8 @@ speed, the turret's fire rate…). **If your game's main mechanic isn't driven b
 - **Stream rate is yours to cap.** The shell streams at the trainer's native rate by default; call
   `session.setHardwareRate(hz)` to cap it (anti-aliased — a ceiling, never an upsampler), or
   `session.setHardwareRate(null)` for no limit. Callable any time.
-- **Support the experience the RIDER chose.** They pick an intensity and whether it has a BAND, in the shell (PLAT-1661); your game reads that and adapts. Steady means no band (`minWatts === maxWatts === targetWatts`), so keep your demands flat; Dynamic means a band around the target that you are free to move within. It says nothing about the trainer: ERG is held only if a game asks (`setDemand`), so a game where the player simply reacts to the screen never asks, is never held, and pushing harder always produces more watts. Structured workouts are selected and executed by the platform. Read the choice, the full plan and live position through `session.training`; games adapt content without owning a workout clock or ERG target. Actual watts always drive gameplay bonuses, even above a prescribed target.
+- **Show the GAME TARGET before each run.** How hard the rider wants to ride in a game is ONE number in watts, their GAME TARGET, saved on the rider and shared by every game. The shell no longer asks it in its setup flow (PLAT-1925): **your game shows it on the screen the rider sees before a run** (a start card, a race lobby) with `mountGameTargetPicker(host, { session })` from `@rydr/game-sdk/ui` (protocol 52), routing LEFT / RIGHT to `picker.handle(name)` while that row has focus and calling `picker.dispose()` when the screen closes. The picker draws the shell's own ladder and writes the rider's choice back, so 280 W picked in your game is 280 W in the next. Don't draw your own copy of it. A game whose difficulty is its OWN watts for a run (`setGameTarget`, below) shows its own control for those runs instead; a game that shows nothing still runs on the rider's saved one.
+- **Support the experience the RIDER chose.** They pick their GAME TARGET (above) and whether it has a BAND, in the platform menu (PLAT-1661); your game reads that and adapts. Steady means no band (`minWatts === maxWatts === targetWatts`), so keep your demands flat; Dynamic means a band around the target that you are free to move within. It says nothing about HOW the trainer is ridden: that is the rider's pick PER GAME (PLAT-1846), ERG, Gears or Fixed, changed with L1 + R1 and remembered for your game. In ERG the rider is held at `intensity.targetWatts` (and `setDemand` moves them inside the band); on Gears or Fixed they pedal freely. So a game where the player simply reacts to the screen never asks, and a rider who wants pushing harder to produce more watts rides it on Gears. Structured workouts are selected and executed by the platform. Read the choice, the full plan and live position through `session.training`; games adapt content without owning a workout clock or ERG target. Actual watts always drive gameplay bonuses, even above a prescribed target.
 - **The loop: SEE → REACT → PUSH → SEE.** The player sees a threat, pushes, and immediately sees
   the result. Keep current effort visible as *feedback* (a power bar, position, fire rate) —
   feedback is fine; *instructions* are not.
@@ -56,6 +64,20 @@ Hard rules — keep to these:
   production builds stay token-free.
 - **No chrome.** The shell owns the navbar, background, hardware UI, and profile. Your
   `index.html` body stays transparent; you render only game content.
+- **The ride HUD is the shell's, and you choose how much of it you get.** Over your game the shell
+  draws the rider's live card in the top-left corner and, during a workout, the rep panel on its
+  right and the workout details under it. If your screen already says some of that, or you need the
+  corner, call `session.setRideHud({ live: "full" | "compact" | "hidden", rep, workout })`:
+  `compact` keeps the card's top row of three readings only. Each call is the whole view (what you
+  leave out is shown), and it resets when your game unmounts. Don't redraw what you hid.
+  **Leave its room free**: `session.rideHudArea` is where it actually is, in your pixels (`rects`
+  per block, `bounds` around them, empty when nothing is drawn), and `session.onRideHudArea(cb)`
+  follows it as a workout starts or ends, as your own `setRideHud` changes it, and on resize. A DOM
+  layout can use `var(--rydr-hud-bottom, 0px)` (also `-left/-top/-right/-width/-height`) with no
+  code. An editor gets no HUD: `setPowerBar(false)` removes both.
+  **A slow trainer**: a game that judges power in real time can add `lowRateWarning: true` to the
+  view; the shell then warns a rider whose trainer is too slow ("Slow trainer" on the HUD, the
+  explanation in the platform menu). The shell measures and draws; never measure the rate yourself.
 - **Full access — no capabilities to choose.** `connectToPlatform({ gameId })` grants the
   game **everything**; never pass a `capabilities` list.
 - **Hardware + identity come from the shell**, via `session.hardware` and `session.identity`.
@@ -90,8 +112,8 @@ Hard rules — keep to these:
   `session.captureMoment(blob, { label })` / `session.captureClip(blob, { label })` (a short video,
   e.g. `canvas.captureStream()` → `MediaRecorder`; cap ~3–6s, prefer `video/mp4`).
 - **Immersive play:** the shell navbar is always hidden while a game runs (no game control
-  needed). `session.setActivity("playing"|"menu")` marks active gameplay vs menu screens (and
-  drives the shell's resistance easing); the shell's in-game platform menu (Exit + hardware) is summoned by the MENU button / M key, not a persistent button.
+  needed). `session.setActivity("playing"|"menu")` marks active gameplay vs menu screens (it does
+  NOT change resistance: menus never ease the trainer, PLAT-1623); the shell's in-game platform menu (Exit + hardware) is summoned by the MENU button / M key, not a persistent button.
   Project internal routes with
   `session.setRoute(path)` so the top URL is shareable/deep-linkable. On a cold
   load the shell **mounts your game at `game.url/<tail>`** — i.e. the deep-link tail
@@ -104,15 +126,13 @@ Hard rules — keep to these:
   deep-linkable states (a level, a menu) should restore; transient states
   (`gameover`, mid-run) have no context to restore, so route them to a sane entry
   point instead of booting into a dead screen.
-- **Menu resistance — `session.setActivity("playing" | "menu")`.** Tell the shell whether the
+- **Gameplay vs menu — `session.setActivity("playing" | "menu")`.** Tell the shell whether the
   rider is racing or navigating. Call `setActivity("playing")` when your gameplay loop is live, and
-  `setActivity("menu")` on every other screen — **including your title/menu screen at boot** (the
-  scaffold does this right after `ready()`). The shell eases trainer resistance (~35%) while not
-  `"playing"` so the rider keeps spinning between efforts, and restores full resistance the instant
-  play resumes. Your game sets **no** resistance value — only the state; the shell owns the policy (a
-  rider can disable it in Settings). **Default is `"menu"`** — a game that never reports stays eased
-  (safe, never stuck at full). You only toggle the two: the shell auto-resets you to the eased state
-  on pause / exit / crash, so there's nothing to clean up.
+  `setActivity("menu")` on every other screen, **including your title/menu screen at boot** (the
+  scaffold does this right after `ready()`). It is activity context, not resistance: the shell no
+  longer eases the trainer on menus (PLAT-1623), the rider keeps their own level everywhere, and
+  your game sets **no** resistance value. **Default is `"menu"`**, and the shell resets you to it on
+  pause / exit / crash, so there's nothing to clean up.
 - **ERG is the one exception, and almost certainly not yours.** Resistance is rider-owned and
   `setSimulation` is a no-op, but a game whose entire point is a *prescribed* target — a structured
   workout — can take the trainer's control point: `session.setErgMode(true)`, then
@@ -244,14 +264,14 @@ the four **positional** face buttons `DIAMOND_UP`/`DIAMOND_DOWN`/`DIAMOND_LEFT`/
 (named by position on the pad, never by letter — the bottom button is printed `A` on an Xbox
 pad, `✕` on a DualSense and `B` on a Switch Pro, so a letter would lie to most riders), the two
 shoulder triggers `LT`/`RT` (plain clicks, no analog travel), the stick presses
-`LSTICK_PRESS`/`RSTICK_PRESS`, and `OPTIONS` — the game's OWN menu/options button, distinct from
-the platform's own overlay menu (keyboard `M`/phone `MENU`/gamepad Start, which never reaches a
-game) — use it to open your in-game pause/options screen (the game assigns meaning to all of
-these — the platform never decides "confirm" vs "back"). The **house convention** is
+`LSTICK_PRESS`/`RSTICK_PRESS` (the game assigns meaning to all of these — the platform never decides
+"confirm" vs "back"). **`OPTIONS` never reaches a game on RYDR**: it is a second platform MENU
+button (with keyboard `M`/`O`, phone `MENU`, gamepad View and ☰), the shell opens its own menu
+on it, and your pause/options rows live in that menu via `mountOptionMenu` (below). Don't bind it. The **house convention** is
 `DIAMOND_DOWN` = confirm / primary action and `DIAMOND_RIGHT` = back / cancel (matching Xbox,
 PlayStation and Nintendo), with `DIAMOND_UP`/`DIAMOND_LEFT` contextual and `LT`/`RT` as extra
-contextual inputs (no convention). Not every controller exposes `LT`/`RT`, the `R*` directions, a
-stick press, or `OPTIONS`, so never gate a required flow behind them alone. **Never hardcode a
+contextual inputs (no convention). Not every controller exposes `LT`/`RT`, the `R*` directions or a
+stick press, so never gate a required flow behind them alone. **Never hardcode a
 button letter in on-screen
 text** — print `session.buttonLabel("DIAMOND_DOWN")` (resolves to `"A"`/`"✕"`/`"B"` for the pad
 the rider actually holds) or use a keycap from `@rydr/game-sdk/ui`. **A keycap needs the rider's
@@ -262,7 +282,13 @@ which also wires the pressed sink) to `createKeycap`/`createDpadKeycap`/`createB
 prints the wrong letter forever. That is worst on a Switch pad, where confirm is printed `B` and
 back `A` — the exact opposite of the Xbox letters — so an unlettered cap names the button that does
 the other thing. Build caps where the session is reachable, or park it in one small module the cap
-builders read (the platform shell does this in `src/platform/shellKeycaps.ts`). Every controller (keyboard,
+builders read (the platform shell does this in `src/platform/shellKeycaps.ts`). A rider on a computer
+with no controller gets the **`"keyboard"` set** (SDK protocol 51): the caps print the KEYS (`↵` for
+confirm, `⌫` for back, `Esc`), so lettering through the session is also what makes a prompt right for
+them. The keyboard maps Space / Enter to `DIAMOND_DOWN` and Backspace to `DIAMOND_RIGHT`; W / X
+(resistance) and C (the trainer mode) are the shell's and never reach `onButton`. Which controllers may
+launch a game at all is the registry's `inputs` list (admin "Playable with", see `SETUP.md`), and the
+keyboard is off it unless ticked. Every controller (keyboard,
 phone, Zwift Play/Click) is normalised to these names. Buttons deliver **real
 hold edges**: `onButton` fires `{name, edge, repeat}` with `edge: "down"` on press and `"up"`
 on release. **By default `onButton(cb)` gives you one `down` per physical press** — the shell
@@ -305,34 +331,39 @@ same engine the platform shell uses, so your menus match the rest of RYDR. Only 
 `node_modules/@rydr/game-sdk/nav/README.md`.
 
 **The in-game OPTION menu — don't build your own either.** `mountOptionMenu(document.body,
-{ session, title, items })` from **`@rydr/game-sdk/ui`** is the shared overlay every game opens on
-`OPTIONS`: your game's name big at the top **in your own font** (it inherits the page's), a free
+{ session, title, items })` from **`@rydr/game-sdk/ui`** is the shared menu every game offers (an
+overlay on `OPTIONS` only on an older shell): your game's name big at the top **in your own font** (it inherits the page's), a free
 `Resume` row, then your rows — `{ label, onSelect, shortcut?, hint?, disabled?, danger? }`. A row's
 `shortcut` is the button that does the same thing *during play*, drawn as `Shortcut [Y]` so the rider
 learns it (binding it in gameplay is still your job). Gate it to your play phase with
 `canOpen: () => phase === "playing"`. **It cannot pause your game** — freeze your own loop and timers
 in `onOpen`/`onClose` — but it does guarantee a game that keeps running can't be *driven*: it takes
 the controller over while up (`session.grabInput`), so your `onButton` handlers go quiet,
-`isDown`/`stick` read resting, and anything held is released first. It also declares
-`setActivity("menu")` while up and `"playing"` on close, so trainer resistance eases on the pause
-screen with no code from you. See `node_modules/@rydr/game-sdk/ui/README.md`.
+`isDown`/`stick` read resting, and anything held is released first. It does NOT call `setActivity`
+and does not touch the trainer (since SDK 8.0.0); the rider keeps riding what they were riding.
+**On RYDR it is not an overlay at all (PLAT-1795, SDK protocol 44):** the shell draws your rows
+INSIDE its own platform menu, under Resume, so the rider has ONE menu. MENU and OPTIONS both open
+it (the shell's buttons, never your game's), and the platform menu opening and closing runs your `canOpen` /
+`onOpen` / `onClose`, and a press runs your row's own `onSelect` / `onStep`. Same code either way
+(an older shell gets the overlay); only the overlay draws `shortcut`, `hint` and your font, so make
+each `label` stand on its own. See `node_modules/@rydr/game-sdk/ui/README.md`.
 - **`node_modules/@rydr/game-sdk/README.md`** — usage + an API overview.
 
 If anything about the API is unclear, open those — never guess.
 
 ## Platform-owned training (PLAT-1623)
 
-Describe supported experiences in `rydr.training` and the registry's `training` object: optional `steady`, `dynamic`, and `workouts` string descriptions. Missing means legacy Dynamic behaviour; never advertise support a game has not implemented. **Steady/Dynamic is the rider's choice, not the game's, and it means "is there a band"** (PLAT-1661): read `session.training.current.intensity` (`minWatts`/`maxWatts` collapse to the target in steady) and `subscribe()` for changes, and use existing `setActivity` for menu/play transitions. `setDemand(level)` asks the trainer to hold a point in that band; `releaseTrainer()` stops asking. **Since PLAT-1663 a release hands the trainer back to the rider's own ERG target, not to nothing** — that target is a standing hold the rider set, and a game only ever borrows the trainer from it. So releasing is no longer a way to get the rider above `maxWatts`: if a sprint needs headroom, ask for it with `setDemand`. `session.training.setEffort(...)` still exists because the SDK type declares it, but the host ignores it — a guest cannot put the trainer somewhere the rider did not ask for. `session.training.supported` detects older hosts; `current` and `subscribe` provide the complete workout plan and authoritative live progress. Games must not create a training clock or end the platform ride on exit. The default workout overlay and coordinated pause controls are deferred.
+Describe supported experiences in `rydr.training` and the registry's `training` object: optional `steady`, `dynamic`, and `workouts` string descriptions. Missing means legacy Dynamic behaviour; never advertise support a game has not implemented. **Steady/Dynamic is the rider's choice, not the game's, and it means "is there a band"** (PLAT-1661): read `session.training.current.intensity` (`minWatts`/`maxWatts` collapse to the target in steady) and `subscribe()` for changes, and use existing `setActivity` for menu/play transitions. `setDemand(level)` asks the trainer to hold a point in that band; `releaseTrainer()` stops asking. A game whose difficulty is a power the rider picks IN the game can make the shell rebuild the band around it for the run with `setGameTarget(watts | null)` (PLAT-1849, SDK 11.2+; see the SDK's training README). **A release hands the trainer back to the game target (for a rider in ERG), not to nothing** (PLAT-1846). So releasing is no way to get the rider above `maxWatts`: if a sprint needs headroom, ask for it with `setDemand`. `session.training.setEffort(...)` still exists because the SDK type declares it, but the host ignores it — a guest cannot put the trainer somewhere the rider did not ask for. `session.training.supported` detects older hosts; `current` and `subscribe` provide the complete workout plan and authoritative live progress. Games must not create a training clock or end the platform ride on exit. The default workout overlay and coordinated pause controls are deferred.
 
 ### Where the numbers come from
 
-The historical menu-easing and game-owned ERG guidance above is superseded: report menu/playing with `session.setActivity`, and consume the rider's effort choice and workout snapshots through `session.training`. Training-aware games never command their own ERG targets. Menus restore base ERG; active workouts retain priority and keep running.
+The historical menu-easing and game-owned ERG guidance above is superseded: report menu/playing with `session.setActivity`, and consume the rider's effort choice and workout snapshots through `session.training`. Training-aware games never command their own ERG targets. `setActivity("menu")` puts the rider on their MENU setting (the Menu ERG by default), `"playing"` on the one they picked for your game (PLAT-1846); active workouts retain priority and keep running.
 
 Two different numbers, easy to confuse:
 
 - **`identity.ftp`** is the rider's OWN functional threshold power in watts, as they stated it in their profile. It is no longer a difficulty they picked (that dial was deleted in PLAT-1628) — express `%FTP` demands against it exactly as before, only the meaning changed.
 - **`training.baseTargetWatts`** is the intensity they chose for THIS ride, already scaled from that FTP. It is what Steady holds them at and what Dynamic swings them around, so it — not raw watts — is what your demands should be relative to. It is the same number as `training.intensity.targetWatts`; prefer that one.
-- **`training.ergTargetWatts`** is a DIFFERENT number and not yours to aim at: what the trainer is physically holding right now, which since PLAT-1663 is the rider's own ERG target whenever your game is not asking. Read it to report, never to size a challenge.
+- **`training.ergTargetWatts`** is a DIFFERENT number and not yours to aim at: what the trainer is physically holding right now: your game target in ERG, your demand while you ask, a workout's block, or nothing at all for a rider on Gears or Fixed (PLAT-1846). Read it to report, never to size a challenge.
 
 Workout FTP still comes from workout progress and is separate from both.
 
@@ -408,10 +439,31 @@ it before adapting a game. The four things that catch people out:
   you already fired because time moved back over them.
 - **You can be mounted at ANY position**, mid-effort included — second 2347, fourteen seconds into a
   30-second effort. Render the truth on your FIRST snapshot; never animate in from zero.
-- **`participants` includes bots, and you must not care.** A rider alone gets a bot pacer, so there is
-  never an empty room and your game needs no "riding alone" branch. `isBot` is for wording and
-  leaderboards, never for geometry. Rank by `compliance`, never by `power`: everyone rides the same
-  %FTP at different watts, so ranking by watts builds a heaviest-rider-wins leaderboard.
+- **`participants` carries the REAL riders, and the pacer is YOURS to make.** This bullet used to say
+  the platform supplied bots; Ben reversed that on 2026-09-22, because drawing a pacer is not a detail
+  of a bot, it *is* the game — a rigged cyclist on a road in one, an opponent in a duel in the next.
+  So a room of one arrives as a list of one and **your game must still put somebody beside them**;
+  derive the pacer from the frozen workout, the shared position and a seed, and never put it on the
+  wire, in a result or in a leaderboard. `isBot` stays on the type for games that merge their own
+  pacer into a list of this shape, and it is for wording and leaderboards, **never for geometry**.
+
+  Three more things about this list, all of which have bitten somebody:
+
+  - **A solo workout is a list of ONE, not an empty list** (PLAT-1667). `participants.length > 0` does
+    not mean "multiplayer" — it is true in every workout. If you genuinely need to tell solo from a
+    room nobody has joined yet, read `snapshot.session?.mode`. Filter yourself out by
+    `session.identity.playerId`, never by name or array order.
+  - **`fresh === false` means "no reading", not 0 W.** A peer whose tab hid or whose link stalled is
+    sent at zero rather than frozen at their last watts, so this flag is the only thing separating
+    them from somebody genuinely soft-pedalling. Test `!== false` — absent means fresh.
+  - **Rank by `power - targetPower`, never by `compliance` and never by raw `power`** (PLAT-1668 —
+    this reverses what this bullet said about compliance). Raw watts build a heaviest-rider-wins
+    leaderboard; the ratio flatters whoever is prescribed less, since 10 % over 200 W is 20 W of extra
+    work and 10 % over 400 W is 40 W. The delta is already personal to each rider.
+
+  If you open a realtime room of your own for the riders in a workout, key it on
+  `snapshot.session?.groupId` — identical on every client in the session, unlike a result UUID
+  (per-rider) or the workout definition's id (shared by every room riding it).
 
 A game suited to a workout block takes its input from the **gamepad, not the pedals** — aim, steer,
 time a press, hit a note. If your controller *is* the pedals, a workout block has already taken it:
@@ -419,3 +471,27 @@ everyone is held at the same target, so everyone performs identically.
 
 Declare support in the registry's `training.workouts` before a host can put you in a rotation. The
 lobby lists only games that declare it.
+
+## Being filmed — replay videos (PLAT-1932)
+
+After a run, the rider can pick 10 seconds of it in the shell's editor and export a video (your
+game, their watts, the video they filmed of themselves, the RYDR brand) to post on Instagram or
+TikTok. **The shell does all the video work.** Your game only answers six calls on its
+`replay/:runId` route, through `session.serveReplay(host)` (`@rydr/game-sdk` 12.7.0+, protocol 53):
+`load`, `seek`, `renderFrame(t, { width, height, camera?, hud })`, `renderAudio(t0, t1, rate)`,
+`cameras`, `moments`.
+
+Read **`node_modules/@rydr/game-sdk/dist/replay/README.md`** ("Replay ready") before you build a
+game you want filmed; retrofitting is the expensive path. The rules that shape a game from day one:
+
+- **Simulation and rendering are separate, and there is one source of time.** The sim advances only
+  by the `dt` it is given; the renderer takes the instant as a parameter. Nothing that is drawn reads
+  `performance.now()`, `Date.now()` or a rAF timestamp.
+- **Randomness is seeded**, on two streams (gameplay, cosmetics), never `Math.random` in the sim.
+  `createRng`, `rngAt` and `seeded` from `@rydr/game-sdk/replay`.
+- **The sim does not depend on the screen size**, and the renderer draws at any size from 16:9
+  to 1:1.
+- **The on-screen info that tells the moment is drawn in the canvas**, not in the DOM, and can be
+  hidden.
+- **Sound accepts an injected `AudioContext`**, so it can be rendered offline.
+- **Every image you draw is loaded with CORS**, or the frame cannot reach the shell at all.

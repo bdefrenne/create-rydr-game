@@ -1,6 +1,7 @@
-import { defineConfig } from "vite";
+import { defineConfig, searchForWorkspaceRoot } from "vite";
 import { resolve } from "path";
 import { existsSync } from "node:fs";
+import { stripTemplateCommentsPlugin } from "./scripts/strip-template-comments.mjs";
 
 /**
  * LOCAL SDK DEVELOPMENT — the canonical RYDR way. READ THIS before changing the SDK + a game together.
@@ -25,7 +26,9 @@ const linkSdk = existsSync(sdkSrc);
 export default defineConfig({
   // `NO_HMR=1` (the `dev:frozen` script) disables HMR so edits never reload the running tab —
   // the built version stays usable while you code; manual refresh serves freshly transformed source.
-  server: { port: 3400, hmr: process.env.NO_HMR ? false : undefined }, // change only if this clashes with another local dev server
+  server: { port: 3400, hmr: process.env.NO_HMR ? false : undefined,
+    fs: { allow: [searchForWorkspaceRoot(__dirname), ...(linkSdk ? [sdkSrc] : [])] },
+  }, // change only if this clashes with another local dev server
   resolve: {
     // `@rydr/game-sdk` → src/index.ts, `@rydr/game-sdk/three` → src/three/index.ts, etc.
     alias: linkSdk ? [{ find: /^@rydr\/game-sdk(\/.*)?$/, replacement: `${sdkSrc}$1/index.ts` }] : [],
@@ -34,6 +37,8 @@ export default defineConfig({
     dedupe: ["three"],
   },
   plugins: [
+    // Lit css``/html`` comments are strings to the minifier, so they shipped; this removes them.
+    stripTemplateCommentsPlugin(),
     {
       // Map the shell's extensionless deep-links to their real build entry. The game itself is
       // index.html (served by default); the voice-over editor is a separate full-page guest the
