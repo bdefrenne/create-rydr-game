@@ -13,24 +13,22 @@ async function boot(): Promise<void> {
   const session = await connectToPlatform({ gameId: "__SLUG__" });
   session.ready();
 
-  // The RIDER chooses how hard to ride and whether to hold it Steady or ride it Dynamic, in the
-  // shell (PLAT-1661). Your game READS that and builds a different experience around it.
-  //
-  //   steady  — NO band. `intensity.minWatts === maxWatts === targetWatts`. Keep your demands flat.
-  //   dynamic — a band around the target, and it is yours to move within.
+  // The RIDER chooses how hard to ride (the game target, shown before each run, PLAT-1925). You
+  // get a band around that target (`intensity.minWatts` to `maxWatts`), and it is yours to move
+  // within. There is no platform Steady any more (parked 2026-10-16): if your game wants a flat
+  // effort, keep your demand still; if it wants to offer the rider a steady option, that option is
+  // yours to draw.
   //
   // It says nothing about HOW the trainer is ridden: that is the rider's pick, per game (PLAT-1846).
-  // A rider who rides your game in ERG is held at `intensity.targetWatts`; one who picks Gears or
-  // Fixed (L1 + R1, remembered for your game) pedals freely. If your game has no target of its own
+  // A rider who rides your game in ERG is held at `intensity.targetWatts`; one who picks Gears
+  // (L1 + R1, remembered for your game) pedals freely. There is no third mode (SDK 14.0.0). If your game has no target of its own
   // (the player just reacts to the screen), never call setDemand: a rider who wants pushing harder
-  // to produce more watts picks Gears for it. Honour the window either way and steady/dynamic falls
-  // out for free.
+  // to produce more watts picks Gears for it.
   //
   // Express demands against `intensity.targetWatts`, never in watts of your own: it is the one
   // number that means the same effort to a 150 W beginner and a 415 W pro, so one authored
   // challenge lands fairly on every body.
   session.training.subscribe((training) => {
-    document.body.dataset["effort"] = training.effort; // "steady" | "dynamic"
     // Scale whatever your game asks of the rider against this, rather than naming watts yourself.
     intensityTarget = training.intensity?.targetWatts ?? training.baseTargetWatts;
   });
@@ -141,16 +139,18 @@ async function boot(): Promise<void> {
   //   testers never see it); gate on "beta" for the eventual free/paid line. The shell knows
   //   nothing about your tracks or levels — which ones are free is your call, not the registry's.
   // session.setActivity("playing" | "menu") → declare racing vs any non-racing screen so the shell
-  //   restores base ERG in menus and applies the selected effort preference in play.
+  //   puts the rider on their Menu ERG in menus and on what they picked for your game in play.
   //   Active workouts retain their targets; menu state never pauses their clock.
   // session.setRoute("play")            → project your internal route into the top URL
   // NOTE: there's no "menu chrome" call — the shell's platform menu is summoned on demand (MENU
   //   button / M key), and the trainerless power bar stays visible everywhere so a keyboard rider
   //   can always pedal. Only an editor hides it, with session.setPowerBar(false).
-  // session.setRideHud({ live: "compact", workout: false })
-  //   → the shell's ride HUD over your game: the live card "full" | "compact" (its readings row
-  //     only) | "hidden", and the workout's rep panel / details on or off. Each call is the whole
-  //     view; setRideHud() with nothing shows everything again. Omit it and the rider gets it all.
+  // session.setRideHud({ live: "compact" })
+  //   → the shell's ride HUD over your game: the corner card "full" | "compact" (its readings row
+  //     and the resistance) | "hidden", or "screen" (SDK 13.2.0): the full card as your whole
+  //     screen, drawn UNDER your frame, for a game whose only picture is the ride (keep your page
+  //     transparent). Each call is the whole view; setRideHud() with nothing shows everything
+  //     again. Omit it and the rider gets the full corner card.
   // session.setRideHud({ menu: "compact", column: document.querySelector(".menu-column") })
   //   → on your MENUS (while you report setActivity("menu")) the HUD becomes the riding home's bar
   //     across the top: "full" (with its chart) or "compact" (one flat line), lined up with your menu
@@ -165,7 +165,7 @@ async function boot(): Promise<void> {
   // session.rideHudArea / session.onRideHudArea((area) => layout(area))
   //   → WHERE that HUD is, measured by the shell, in your own CSS pixels: `rects` (one box per
   //     block on screen) and `bounds` (the box around them; null when nothing is drawn). It changes
-  //     during a ride (a workout adds panels, setRideHud removes some, a resize), so follow it and
+  //     during a ride (a workout starts or ends, setRideHud changes it, a resize), so follow it and
   //     keep that space free. From CSS: var(--rydr-hud-bottom, 0px), also -left/-top/-right/-width/
   //     -height on :root. An editor's setPowerBar(false) takes the HUD away too.
   //
@@ -353,19 +353,19 @@ void boot();
 // Training contract (PLAT-1623, PLAT-1661, PLAT-1925).
 //
 // READ: `session.training.current` + `.subscribe()`.
-//   · `effort` — "steady" | "dynamic". The RIDER's choice, not yours. Your own setEffort() is
-//     ignored: a guest must not put the trainer somewhere the rider did not ask for.
+//   · `effort` — always "dynamic" now (Steady is parked). Ignore it; setEffort() is ignored too.
 //   · `intensity` — { group, targetWatts, minWatts, maxWatts, ftp }. Scale your demands to
 //     `targetWatts` rather than naming watts yourself.
 //   · `ergTargetWatts` — what the trainer is ACTUALLY holding, which is not always what you asked
-//     for. No ERG-capable trainer, the rider riding your game on Gears or Fixed, and a workout
+//     for. No ERG-capable trainer, the rider riding your game on Gears, and a workout
 //     outranking you all look identical from in here. Render from this, not from your own request.
+//   · `trainerMode` — "erg" | "gears", how the rider rides your game (no "fixed" since SDK 14.0.0).
 //
 // WRITE (optional): `session.training.setDemand(level)` moves the trainer to a point in the
 // rider's band. It only moves it while the rider rides your game in ERG (PLAT-1846), where the
 // trainer is otherwise held at `targetWatts`.
 //   · 0 is `minWatts`, 1 is `maxWatts`. Normalized, not watts, so one authored curve fits every
-//     rider and survives a retune of the band. In steady those are the same number.
+//     rider and survives a retune of the band.
 //   · `session.training.releaseTrainer()` stops ASKING, which returns the trainer to the rider's
 //     game target (in ERG) rather than to their legs. So a release is no route above `maxWatts`:
 //     if a SPRINT needs headroom, ask for it with setDemand.

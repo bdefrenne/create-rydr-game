@@ -44,7 +44,7 @@ speed, the turret's fire rate…). **If your game's main mechanic isn't driven b
   `session.setHardwareRate(hz)` to cap it (anti-aliased — a ceiling, never an upsampler), or
   `session.setHardwareRate(null)` for no limit. Callable any time.
 - **Show the GAME TARGET before each run.** How hard the rider wants to ride in a game is ONE number in watts, their GAME TARGET, saved on the rider and shared by every game. The shell no longer asks it in its setup flow (PLAT-1925): **your game shows it on the screen the rider sees before a run** (a start card, a race lobby) with `mountGameTargetPicker(host, { session })` from `@rydr/game-sdk/ui` (protocol 52), routing LEFT / RIGHT to `picker.handle(name)` while that row has focus and calling `picker.dispose()` when the screen closes. The picker draws the shell's own ladder and writes the rider's choice back, so 280 W picked in your game is 280 W in the next. Don't draw your own copy of it. A game whose difficulty is its OWN watts for a run (`setGameTarget`, below) shows its own control for those runs instead; a game that shows nothing still runs on the rider's saved one.
-- **Support the experience the RIDER chose.** They pick their GAME TARGET (above) and whether it has a BAND, in the platform menu (PLAT-1661); your game reads that and adapts. Steady means no band (`minWatts === maxWatts === targetWatts`), so keep your demands flat; Dynamic means a band around the target that you are free to move within. It says nothing about HOW the trainer is ridden: that is the rider's pick PER GAME (PLAT-1846), ERG, Gears or Fixed, changed with L1 + R1 and remembered for your game. In ERG the rider is held at `intensity.targetWatts` (and `setDemand` moves them inside the band); on Gears or Fixed they pedal freely. So a game where the player simply reacts to the screen never asks, and a rider who wants pushing harder to produce more watts rides it on Gears. Structured workouts are selected and executed by the platform. Read the choice, the full plan and live position through `session.training`; games adapt content without owning a workout clock or ERG target. Actual watts always drive gameplay bonuses, even above a prescribed target.
+- **Support the experience the RIDER chose.** They pick their GAME TARGET (above), and you get a band around it that you are free to move within. There is no platform Steady any more (parked 2026-10-16): a game that wants a flat effort keeps its demand still, and a steady option for the rider, if your game wants one, is yours to offer. It says nothing about HOW the trainer is ridden: that is the rider's pick PER GAME (PLAT-1846), ERG or Gears (there is no Fixed mode since SDK 14.0.0, PLAT-2011), changed with L1 + R1 and remembered for your game. In ERG the rider is held at `intensity.targetWatts` (and `setDemand` moves them inside the band); on Gears they pedal freely. So a game where the player simply reacts to the screen never asks, and a rider who wants pushing harder to produce more watts rides it on Gears. Structured workouts are selected and executed by the platform. Read the choice, the full plan and live position through `session.training`; games adapt content without owning a workout clock or ERG target. Actual watts always drive gameplay bonuses, even above a prescribed target.
 - **The loop: SEE → REACT → PUSH → SEE.** The player sees a threat, pushes, and immediately sees
   the result. Keep current effort visible as *feedback* (a power bar, position, fire rate) —
   feedback is fine; *instructions* are not.
@@ -65,11 +65,16 @@ Hard rules — keep to these:
 - **No chrome.** The shell owns the navbar, background, hardware UI, and profile. Your
   `index.html` body stays transparent; you render only game content.
 - **The ride HUD is the shell's, and you choose how much of it you get.** Over your game the shell
-  draws the rider's live card in the top-left corner and, during a workout, the rep panel on its
-  right and the workout details under it. If your screen already says some of that, or you need the
-  corner, call `session.setRideHud({ live: "full" | "compact" | "hidden", rep, workout })`:
-  `compact` keeps the card's top row of three readings only. Each call is the whole view (what you
-  leave out is shown), and it resets when your game unmounts. Don't redraw what you hid.
+  draws the rider's live card in the top-left corner (the rep and workout side panels are gone for
+  now; `rep` / `workout` are accepted and draw nothing). If your screen already says some of that, or
+  you need the corner, call `session.setRideHud({ live: "full" | "compact" | "hidden" | "screen" })`:
+  `compact` keeps the card's readings row and the resistance only; `"screen"` (SDK 13.2.0, protocol
+  61) draws the full card as your WHOLE screen, UNDER your frame, for a game whose only picture is the
+  ride (leave your page transparent; whatever you draw stays on top; an older shell draws the corner).
+  On your own MENUS you can ask for the riding home's bar across the top instead, with
+  `menu: "full" | "compact"` and the `column` it should sit over (protocol 48); it follows your
+  `setActivity("menu" | "playing")`. Each call is the whole view (what you leave out is shown), and
+  it resets when your game unmounts. Don't redraw what you hid.
   **Leave its room free**: `session.rideHudArea` is where it actually is, in your pixels (`rects`
   per block, `bounds` around them, empty when nothing is drawn), and `session.onRideHudArea(cb)`
   follows it as a workout starts or ends, as your own `setRideHud` changes it, and on resize. A DOM
@@ -176,6 +181,20 @@ Hard rules — keep to these:
   (set from the phone controller's volume keys / hardware) and the SDK scales every `SoundBank` by it
   **automatically — you write no code for it**. Keep using `setMasterVolume`/`setBusVolume` for your own
   mix; the platform master multiplies on top.
+- **The platform plays music over your game; take it only when you play your own (PLAT-1951).** The
+  shell runs a radio on every screen and over every game, so a game with no music of its own needs no
+  code: its sound effects play over the radio. When your game plays music of its own OUTSIDE a
+  `MusicDirector` (a song it charts, a preview, a soundtrack on its own `AudioContext`), call
+  `session.claimMusic(true)` while it plays and `session.claimMusic(false)` when it stops; the radio
+  fades out, keeps its place, and comes back when you let go or quit. A `MusicDirector` bed claims the
+  music **by itself** while it plays. **Songs are the platform's**: they live in the shared sound library
+  (category `music` with a `song` block), uploaded with "+ Add song" in the sound gallery. Refer to one
+  by its library KEY and resolve the file at runtime (`await songUrl("song.black-sails")` or
+  `loadSongLibrary()` from `@rydr/game-sdk/sounds`); never store or upload a song's file yourself.
+  **Albums and genres are the platform's too (PLAT-1960)**: read them with `loadMusicLibrary()`
+  (`{ songs, albums, genres }`; each song carries its album and the cover to show), edited in the sound
+  gallery's ♫ Albums view. Keep only what is about YOUR game (locks, seasons) in your own data, keyed by
+  the album's `id`.
 - **The backend is a platform service — you never stand up your own.** A session-only game
   (read hardware, play, let the platform record the activity) needs no backend at all; don't
   reach for it too soon. When you *do*, the shell backs it **through the SDK session** — there
@@ -239,7 +258,7 @@ Hard rules — keep to these:
   because Vercel Hobby blocks on the commit author) → (3) **registered** by **you** — upsert the game into Supabase `public.games`
   via a `register_<slug>` migration + `supabase db push` in the `../rydr-platform` sibling (no admin
   secret; the `supabase` CLI must be connected — the one thing to ask the user if it isn't). **Live**
-  so it appears in the public library (or a hidden draft via `isLive:false`, testable on the shell
+  so it appears in the public library (or a `"status": "draft"`, testable on the shell
   while signed in as a platform admin; admin UI `/admin.html` is the fallback). A live deploy is
   **not** proof the repo exists — `vercel --prod` ships from
   local without one; the GitHub repo is a required deliverable, not a side effect. Don't stop at local
@@ -282,11 +301,29 @@ which also wires the pressed sink) to `createKeycap`/`createDpadKeycap`/`createB
 prints the wrong letter forever. That is worst on a Switch pad, where confirm is printed `B` and
 back `A` — the exact opposite of the Xbox letters — so an unlettered cap names the button that does
 the other thing. Build caps where the session is reachable, or park it in one small module the cap
-builders read (the platform shell does this in `src/platform/shellKeycaps.ts`). A rider on a computer
+builders read (the platform shell does this in `src/platform/shellKeycaps.ts`). **Never restyle a
+keycap** (Ben, PLAT-1950): place it, never change how it looks. No `filter` or shadow on its element,
+no CSS aimed at `.rydr-ui-pip` / `.rydr-ui-cap` / `.rydr-ui-diamond` / `.rydr-ui-kbd`. It draws its own
+dark halo, and it is still by default: pass `animate: true` only when teaching the controller (a
+first tutorial, a lesson showing which button does what), because an animation that never stops makes the browser redraw
+the whole screen every frame. A different look is a conversation with Ben and an SDK release (the
+rule is at the top of the SDK's `src/ui/keycap.ts`). A rider on a computer
 with no controller gets the **`"keyboard"` set** (SDK protocol 51): the caps print the KEYS (`↵` for
-confirm, `⌫` for back, `Esc`), so lettering through the session is also what makes a prompt right for
-them. The keyboard maps Space / Enter to `DIAMOND_DOWN` and Backspace to `DIAMOND_RIGHT`; W / X
-(resistance) and C (the trainer mode) are the shell's and never reach `onButton`. Which controllers may
+confirm, `Esc` for back, `M` for the menu), so lettering through the session is also what makes a prompt right for
+them. The keyboard maps Space / Enter to `DIAMOND_DOWN` and Escape to `DIAMOND_RIGHT` (SDK 14.2.0;
+Backspace is nothing); W / X (resistance), C (the trainer mode) and M / O (the menu) are the shell's and never reach `onButton`. A rider on a phone or
+a tablet with nothing paired gets the **`"touch"` set** (SDK protocol 58, PLAT-1955): they TAP, and the
+shell's touch bar (MENU, − / +, the value held for the mode) is their only controller. On touch, **skip
+any step that teaches the controller** (a pad drawing, "press L1 + R1"), like the platform's own guide
+does: `padTeaching(session.hardware.current.padBrand ?? session.hardware.current.glyphSet).drawn` is
+`false` there (the SDK's controller views also hide themselves). Build a keycap that sits beside
+something tappable with `hint: true`: the SDK hides hints on touch (`connectToPlatform` runs
+`watchPadHints` for you). Make every button the rider must use on touch tappable. **On a Zwift
+controller (Click, Play, Ride) confirm sits on the RIGHT** (SDK 13.1.0, protocol 60): its `A` (right)
+sends `DIAMOND_DOWN` and its `B` (bottom) `DIAMOND_RIGHT`, as in the Zwift app. Keep reading confirm as
+`DIAMOND_DOWN`; the SDK's keycaps and drawings already place it. Only a game drawing its OWN button
+diamond must ask where a button sits: `facePosition(glyphSet, "DIAMOND_DOWN")` (`"right"` on Zwift,
+`"bottom"` everywhere else). Which controllers may
 launch a game at all is the registry's `inputs` list (admin "Playable with", see `SETUP.md`), and the
 keyboard is off it unless ticked. Every controller (keyboard,
 phone, Zwift Play/Click) is normalised to these names. Buttons deliver **real
@@ -353,7 +390,7 @@ If anything about the API is unclear, open those — never guess.
 
 ## Platform-owned training (PLAT-1623)
 
-Describe supported experiences in `rydr.training` and the registry's `training` object: optional `steady`, `dynamic`, and `workouts` string descriptions. Missing means legacy Dynamic behaviour; never advertise support a game has not implemented. **Steady/Dynamic is the rider's choice, not the game's, and it means "is there a band"** (PLAT-1661): read `session.training.current.intensity` (`minWatts`/`maxWatts` collapse to the target in steady) and `subscribe()` for changes, and use existing `setActivity` for menu/play transitions. `setDemand(level)` asks the trainer to hold a point in that band; `releaseTrainer()` stops asking. A game whose difficulty is a power the rider picks IN the game can make the shell rebuild the band around it for the run with `setGameTarget(watts | null)` (PLAT-1849, SDK 11.2+; see the SDK's training README). **A release hands the trainer back to the game target (for a rider in ERG), not to nothing** (PLAT-1846). So releasing is no way to get the rider above `maxWatts`: if a sprint needs headroom, ask for it with `setDemand`. `session.training.setEffort(...)` still exists because the SDK type declares it, but the host ignores it — a guest cannot put the trainer somewhere the rider did not ask for. `session.training.supported` detects older hosts; `current` and `subscribe` provide the complete workout plan and authoritative live progress. Games must not create a training clock or end the platform ride on exit. The default workout overlay and coordinated pause controls are deferred.
+Describe supported experiences in `rydr.training` and the registry's `training` object: optional `steady`, `dynamic`, and `workouts` string descriptions. Missing means legacy Dynamic behaviour; never advertise support a game has not implemented. Read the band from `session.training.current.intensity` (`minWatts`/`maxWatts`; `effort` is always `dynamic` since Steady was parked) and `subscribe()` for changes, and use existing `setActivity` for menu/play transitions. `setDemand(level)` asks the trainer to hold a point in that band; `releaseTrainer()` stops asking. A game whose difficulty is a power the rider picks IN the game can make the shell rebuild the band around it for the run with `setGameTarget(watts | null)` (PLAT-1849, SDK 11.2+; see the SDK's training README). **A release hands the trainer back to the game target (for a rider in ERG), not to nothing** (PLAT-1846). So releasing is no way to get the rider above `maxWatts`: if a sprint needs headroom, ask for it with `setDemand`. `session.training.setEffort(...)` still exists because the SDK type declares it, but the host ignores it — a guest cannot put the trainer somewhere the rider did not ask for. `session.training.supported` detects older hosts; `current` and `subscribe` provide the complete workout plan and authoritative live progress. Games must not create a training clock or end the platform ride on exit. The default workout overlay and coordinated pause controls are deferred.
 
 ### Where the numbers come from
 
@@ -362,8 +399,9 @@ The historical menu-easing and game-owned ERG guidance above is superseded: repo
 Two different numbers, easy to confuse:
 
 - **`identity.ftp`** is the rider's OWN functional threshold power in watts, as they stated it in their profile. It is no longer a difficulty they picked (that dial was deleted in PLAT-1628) — express `%FTP` demands against it exactly as before, only the meaning changed.
-- **`training.baseTargetWatts`** is the intensity they chose for THIS ride, already scaled from that FTP. It is what Steady holds them at and what Dynamic swings them around, so it — not raw watts — is what your demands should be relative to. It is the same number as `training.intensity.targetWatts`; prefer that one.
-- **`training.ergTargetWatts`** is a DIFFERENT number and not yours to aim at: what the trainer is physically holding right now: your game target in ERG, your demand while you ask, a workout's block, or nothing at all for a rider on Gears or Fixed (PLAT-1846). Read it to report, never to size a challenge.
+- **`training.baseTargetWatts`** is the intensity they chose for THIS ride, already scaled from that FTP. It is the centre of the band your demands move them around, so it — not raw watts — is what your demands should be relative to. It is the same number as `training.intensity.targetWatts`; prefer that one.
+- **`training.ergTargetWatts`** is a DIFFERENT number and not yours to aim at: what the trainer is physically holding right now: your game target in ERG, your demand while you ask, a workout's block, or nothing at all for a rider on Gears (PLAT-1846). Read it to report, never to size a challenge.
+- **`training.trainerMode`** is how the rider rides your game: `"erg"` or `"gears"`, never anything else since SDK 14.0.0 (an older shell's `"fixed"` reaches you as `"gears"`). Advise `"gears"` where pushing harder must produce more watts; never ask for a mode the rider did not pick.
 
 Workout FTP still comes from workout progress and is separate from both.
 
@@ -495,3 +533,60 @@ game you want filmed; retrofitting is the expensive path. The rules that shape a
   hidden.
 - **Sound accepts an injected `AudioContext`**, so it can be rendered offline.
 - **Every image you draw is loaded with CORS**, or the frame cannot reach the shell at all.
+
+## What is out: release states (SDK-1)
+
+**The platform decides what is out, never the game.** The game itself, each of its MODES and each
+`shared` doc (a song, a track, an album, a championship) has one of four states, set on the
+platform's admin page (`/admin.html`, the game's **Access** tab):
+
+| State | Who sees it | Who plays it |
+|---|---|---|
+| `hidden` | nobody (the doc never arrives) | nobody |
+| `draft` | admins, `all_access` riders | the same |
+| `comingSoon` | everyone, with a countdown | admins, `all_access` riders |
+| `live` | everyone | everyone |
+
+- **Declare your content once, in the admin, not in code.** In the Access tab: your modes (`career`,
+  `campaign`…), which of your `shared` collections are content (yes: songs, tracks; NO: a track's
+  geometry or anything else content depends on, because a declared doc can be closed and whatever
+  uses it would break), the field that names a doc, its PARENT and what it USES:
+  - **contains** = one parent per doc (a field naming another doc, or a mode). A doc is never more
+    open than its parent: releasing an album releases its songs.
+  - **uses** = any number (`rounds[].circuitId` → `tracks`). A reference is not a parent: a
+    championship whose track is still a draft arrives with `release.blockedBy`, and is not playable.
+- **A new doc in a declared collection is born a `draft`.** Hidden and draft docs are refused by the
+  database to whoever may not see them: they simply do not come back from `listContent`.
+- **Never keep a draft flag inside `data`.** That is what this replaces; a flag in `data` hides
+  nothing (anyone can read the doc) and is a second source of truth.
+- **Read, never write.** Every shared doc from a protocol-59 shell carries `doc.release`; read it with
+  `releaseOf(doc)` (an older shell sends none: live and playable). A mode: `session.release.mode("career")`.
+  In your editor, SHOW a doc's state and link to `release.adminUrl` (sent to admins only), never an
+  editor of your own.
+- **A doc can come out mode by mode** (SDK 13.1.0, protocol 60): a track live in Time Attack and
+  coming soon in Race. The admin ticks which modes a collection is "Released per mode" in, and sets
+  each doc's state per mode (it only ever closes further). Read it with `releaseOf(doc, modeId)` (or
+  `session.release.of(doc, modeId)`) wherever the mode is known. The database does NOT enforce it:
+  a doc closed in one mode still arrives for the others, so locking it in that mode is your job.
+- **In solo dev the declaration comes from the registry**: `npm run dev` takes your game's content
+  declaration from its registry row, so a game not registered yet sees each doc's overall release but
+  no per-mode state.
+- **A release date never unlocks anything.** Lock what is not `playable` and say when it comes out.
+  The SDK gives the NUMBERS in three shapes, the words around them are yours:
+  `formatReleaseCountdown(at, { locale })` → `3j 04:12:05`, `{ style: "clock" }` →
+  `03 : 04 : 12 : 05`, `formatReleaseDate(at, { locale })` → `Mardi 1er décembre, 18 h`. Once the date
+  is behind they read zero: check `releaseCountdown(at).past` and say "Bientôt" until it is `live`.
+  The platform's own voice is "Le départ" (Départ J-3 / Départ dans 04:12:05 / Sur la ligne de départ).
+
+```ts
+import { releaseOf, releaseCountdown, formatReleaseCountdown } from "@rydr/game-sdk";
+
+const tracks = await session.listContent("tracks");          // hidden/draft never arrive for a rider
+for (const doc of tracks) {
+  const r = releaseOf(doc, "time-attack");                    // or releaseOf(doc) with no modes
+  const left = r.releaseAt && !releaseCountdown(r.releaseAt).past;
+  if (!r.playable) card.lock(left ? `Départ dans ${formatReleaseCountdown(r.releaseAt!, { locale: session.identity.locale })}` : "Bientôt");
+  if (r.adminUrl) card.link("Edit access", r.adminUrl);      // admins only
+}
+if (!session.release.mode("career").playable) lockMenuEntry("career");
+```

@@ -23,7 +23,7 @@
     "deploy": "vercel --prod --yes"
   },
   "dependencies": {
-    "@rydr/game-sdk": "^12.7.0"
+    "@rydr/game-sdk": "^14.2.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

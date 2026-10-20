@@ -128,23 +128,26 @@ Pick a kebab-case **slug** and a human **title** (ask the user). Replace every o
   }
   ```
 
-  The registry row carries it as `manifest.overlay`; `/admin.html` has a checkbox for it. In solo
+  The registry row carries it as `manifest.overlay`; `/admin.html` has a switch for it (the game's page → Settings → Advanced). In solo
   dev the `rydr-dev-shell` bin forwards `rydr.overlay` for you, so `npm run dev` sees it without a
   registry round-trip.
 - **Playable with (the controllers your game works with).** The row's `inputs` lists them: `pad`,
   `zwiftClickOrPlay` (a Click and a Play press the same), `zwiftRide`, `phone`, `touch` (a tablet
   or phone with no controller, on the screen's touch bar), `keyboard`
-  (`/admin.html`: **Playable with**, one box per controller). Left alone it means everything but the keyboard. A rider none of whose controllers is ticked sees your game dimmed, "Not for this
+  (`/admin.html`: the **Devices & controllers** table, or the game's page → **Where it plays**, one box per controller). Left alone it means everything but the keyboard. A rider none of whose controllers is ticked sees your game dimmed, "Not for this
   controller", or "Controller required" on the keyboard. Untick a controller your game cannot be
   played with: a Zwift controller has no analog stick (its arrows are the stick pushed all the way)
   and its Y opens the platform menu, so a game that needs `DIAMOND_UP` or a real stick is not for one.
-  Tick the keyboard only if the game is fine with arrows, Space / Enter, Backspace and Esc, with no
+  Tick the keyboard only if the game is fine with arrows, Space / Enter and Esc (back), with no
   right stick and no triggers. Solo dev (`npm run dev`) is never locked.
+- **In the library or not.** A game that should be launchable from elsewhere (a workout's doors, a
+  group room) but not shown on the library strip sets `"inLibrary": false` in its manifest (admin:
+  "In the library"). Never use `"status": "hidden"` for that: a hidden game is refused to every rider.
 
 - **Multiplayer (only if you call `session.joinRoom`).** Realtime rooms are the shell's **grant**,
   not your declaration: it opens and owns the socket for you (which is what makes a rival's identity
   and wattage unforgeable), so the registry decides whether it will. `/admin.html` has a
-  **Multiplayer** checkbox, **ticked by default** for a new game — so a fresh row is fine and you
+  **Rooms** switch (the game's page → Multiplayer, or the **Rooms & training** table), **on by default** for a new game — so a fresh row is fine and you
   only touch this to turn rooms OFF. If it is off, `joinRoom` still returns a handle and you get a
   loopback room containing only yourself, with no error: that is the symptom to recognise.
 
@@ -373,11 +376,12 @@ registry row:
 1. Add `supabase/migrations/<UTC-timestamp>_register_<slug>.sql`, mirroring the idempotent upsert in
    `0005_seed_games.sql`. The row is `(slug, title, status, boards jsonb, manifest jsonb)` and
    `manifest` is the full `GameManifest` built from this game's `package.json` `rydr` block. Board
-   objects use the key **`id`** (not `boardId`). `status` = `live` (or `draft` if the user asked):
+   objects use the key **`id`** (not `boardId`). The manifest's `"status"` is `"live"` (or `"draft"`
+   if the user asked, see the states below); the database copies it into the `status` column itself:
    ```sql
    insert into public.games (slug, title, status, boards, manifest)
    select g->>'slug', coalesce(g->>'title',''),
-     case when (g->>'isLive')::boolean is false then 'draft' else 'live' end,
+     coalesce(g->>'status', 'live'),
      coalesce(g->'boards','[]'::jsonb), g
    from jsonb_array_elements($json$
    [ { "slug":"<slug>", "title":"<Title>", "icon":"<icon>", "accent":"<#hex>",
@@ -387,10 +391,10 @@ registry row:
       /* "overlay": true  — only if your game draws boxes over the desktop (see above) */
       /* "multiplayer": true, "maxPlayers": 8  — only if you call session.joinRoom (see above);
          absent means the shell hosts rooms anyway, so you only set this to turn them OFF */
-       "isLive":true } ]
+       "status":"live" } ]
    /* Optional artwork: "squareImage" (1:1) and "coverImage" (3:1), each an object
       { "original", "large", "small" } of WebP URLs. Easiest to add by uploading in /admin.html
-      (Edit game → Upload square/cover): it opens a cropper, encodes WebP at large/small/original,
+      (the game's page → Identity & artwork → Upload): it opens a cropper, encodes WebP at large/small/original,
       stores them on R2, and writes the URL set into the manifest for you. */
    $json$::jsonb) g
    on conflict (slug) do update set
@@ -406,15 +410,25 @@ registry row:
 5. **Commit the migration** in `../rydr-platform` so repo history matches the remote DB. Stage only
    your file (the platform tree may hold unrelated WIP) and commit.
 
-For a **draft** instead of Live, set `"isLive": false` (→ `status: draft`): hidden from the public
-library, previewable on the shell by admins. Flip live later with another upsert migration.
-To let riders on the `playtest` access level play it before the beta, add `"playtest": true` to the
-manifest and `playtest` = `true` to the row (RLS reads the column); with `"status": "comingSoon"` the
-public sees a locked teaser while playtesters play it.
+For anything but Live, set the manifest's `"status"` (never the old `"isLive"`) to another of the platform's
+four release states (the database mirrors the column from the manifest, whatever the insert says):
+
+| `status` | Who sees it | Who plays it |
+|---|---|---|
+| `hidden` | nobody (only `/admin.html` lists it) | nobody |
+| `draft` | admins, `all_access` riders | the same |
+| `comingSoon` | everyone, with a countdown to `"releaseAt"` if you set one | admins, `all_access` riders |
+| `live` | everyone | everyone |
+
+`"releaseAt": "2026-12-01T18:00:00+01:00"` (an instant WITH its offset) is display only: the coming
+soon card counts down to it, and nothing opens when it passes. Releasing is setting `live`, in
+`/admin.html` (Settings, Visibility) or with another upsert migration. There is no `playtest` tick
+any more: give a tester `all_access`.
 
 **Fallback (no CLI / no platform access):** the admin UI at **`/admin.html`** (signed in as an
-admin) → **Add**, fill Slug / Title / Icon / Accent / Entry URL + each board, Live, Save.
-Optional **square/cover images** upload here too (Upload square/cover → crop → stored on R2 as WebP).
+admin) → **+ New game**, fill Title / Id / URL slug / Entry URL (and the boards), pick a status, then
+**Review & save**: nothing is written until you confirm the review. Optional **square/cover images**
+upload here too (Identity & artwork → Upload → crop → stored on R2 as WebP, used once you save).
 
 - **Registering is separate from deploying.** A Vercel deploy ships *code*; it does not touch the
   registry. A newly-declared board only becomes authoritative once its row is upserted (unregistered
@@ -448,11 +462,11 @@ GitHub-repo box means the game is **not done**, no matter what's live.
 
 ### Training experience descriptions
 
-Set `rydr.training` in package.json and the registry admin Training JSON field to the experiences your game actually supports, for example `{ "steady": "Explore while keeping your effort steady", "dynamic": "Vary effort with the action", "workouts": "Play along with the platform workout" }`. All fields are optional. The dev shell forwards this metadata in solo mode. The rider chooses Steady or Dynamic in the shell (PLAT-1661) — read it with `session.training.current.effort` and `subscribe()`, and build a different experience around each; continue sending menu/playing activity. Workout timing and targets are platform-owned. Requires @rydr/game-sdk 8.22.0 or newer; use the sibling-source alias only for local SDK development.
+Set `rydr.training` in package.json and the registry admin's **Training** texts (the game's page → Training: Steady, Dynamic, Workouts) to the experiences your game actually supports, for example `{ "steady": "Explore while keeping your effort steady", "dynamic": "Vary effort with the action", "workouts": "Play along with the platform workout" }`. All fields are optional. The dev shell forwards this metadata in solo mode. There is no platform Steady/Dynamic choice any more (parked 2026-10-16, `effort` is always `dynamic`): a flat effort is your game's call, so describe it in `steady` only if your game offers one itself; continue sending menu/playing activity. Workout timing and targets are platform-owned. Requires @rydr/game-sdk 8.22.0 or newer; use the sibling-source alias only for local SDK development.
 
-## Controller teaching (next SDK release)
+## Controller teaching
 
-Available after the SDK release containing the RYDR GLB renderer (or during local sibling-SDK development). Use the existing spotlight with the RYDR model renderer. The SDK owns input priority and the lesson; the renderer owns physical press motion, Supernova, mint input feedback, Fine line labels and automatic framing.
+Use the existing spotlight with the RYDR model renderer. The SDK owns input priority and the lesson; the renderer owns physical press motion, Supernova, mint input feedback, Fine line labels and automatic framing.
 
 ```ts
 import { mountControlSpotlight } from '@rydr/game-sdk/ui';
@@ -470,7 +484,7 @@ const lesson = mountControlSpotlight(host, {
 // On screen teardown: lesson.dispose();
 ```
 
-Supported models: `playstation`, `xbox`, `joycon`. Pass `brand: 'joycon'` when known; the session's Nintendo glyph family does not distinguish a Joy-Con pair from a Switch Pro. No misleading model or SVG substitution is performed. Other controllers need their own authored model before adopting this renderer.
+Models: `xbox`, `playstation`, `joycon`, `keyboard` (an AZERTY keyboard, its keys mapped onto the pad parts), and the Zwift controllers `zwift` (Click), `zwiftPlay`, `zwiftRide` and `zwiftClickV1` (the first Click: − / + only, no face buttons). Draw what the rider holds: `session.hardware.current.padBrand ?? session.hardware.current.glyphSet`. A pad with no model of its own (a Switch Pro) is drawn as the Xbox model with its own lettering. On **touch** nothing is drawn: `padTeaching(...).drawn` is `false` and the views hide themselves, so skip the lesson around them too (see `CLAUDE.md`). For a control the rider keeps down a moment, a step can take `pressStyle: "held"` (SDK 14.1.0).
 
 The `.glb` assets ship beside the renderer in `dist/three/controller/models` and bundlers resolve them through `new URL(..., import.meta.url)`. Custom hosting can pass a renderer factory that supplies `modelUrls` (absolute or page-relative URLs); use versioned immutable URLs with CORS enabled. The models are fetched only on mount and cached as bytes, with independent scenes per mounted view. Call `dispose()` when closing. Camera motion stops under reduced motion and rendering stops while hidden/offscreen.
 
