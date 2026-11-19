@@ -598,3 +598,32 @@ for (const doc of tracks) {
 }
 if (!session.release.mode("career").playable) lockMenuEntry("career");
 ```
+
+## Multiplayer race results and events (SDK protocol 69, CX-167)
+
+**A game with rooms reports each rider's finish, once, from that rider's own machine.** The platform
+keeps it (one row per rider per race, for every game, inside an event or not), sends the team a
+Telegram message, and shows it on a public rankings page (`/events/<slug>`, `/races/<game>/<race>`).
+
+```ts
+const outcome = await session.saveRaceResult({
+  raceKey: `${roomId}:${raceSeq}:${gunAt}`, // the SAME on every rider's machine
+  room: roomId,
+  startedAt: gunAt,          // the race's gun: it decides the event
+  course: "Molenpark",
+  finishedMs: 754_500,       // race time at the line
+  laps: 3,                   // the ranking is laps first, then time; omit with no laps
+  placeAtLine: 2,
+  avgWatts: 245,
+  details: { field: 8, raceLaps: 3, gapMs: 24_000 }, // your own figures, small
+});
+```
+
+- **Only your rider, never anyone else's, never a bot.** The rider, their name and the event are the
+  platform's; a second report of the same `raceKey` is `"already"` and changes nothing.
+- **`"offline"`: keep it and send it again later** (the next launch); a rejection is a refusal (a start
+  that is not a race of now) and retrying will not help. `"unsupported"` is an older shell: nothing sent.
+- **The event is an admin's** (the admin's Events tab: a name, a game or every game, a window). A race
+  that STARTS inside it belongs to it, decided by the platform. `session.liveEvent` is the one live now
+  (`{ name, url, … }` or null): show it in your lobby ("Event: BXL Cyclocross 2026"); `onLiveEvent`
+  follows it as it opens and closes.
